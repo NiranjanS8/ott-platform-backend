@@ -1,11 +1,35 @@
 spring:
   application:
     name: streaming
+  profiles:
+    active: local
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
       - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/streaming}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  graphql:
+    path: /graphql
+    graphiql:
+      enabled: ${GRAPHIQL_ENABLED:false}
 
 server:
   port: 9090
+
+app:
+  name: OTT Streaming Backend
+  environment: ${APP_ENV:local}
+
+security:
+  jwt:
+    issuer: ${JWT_ISSUER:ott-streaming}
+    secret: ${JWT_SECRET:change-me-before-auth}
+    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:PT1H}
