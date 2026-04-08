@@ -1,0 +1,11 @@
+type Query {
+  health: String!
+  appInfo: AppInfo!
+}
+
+type AppInfo {
+  name: String!
+  environment: String!
+  graphqlPath: String!
+}
+
