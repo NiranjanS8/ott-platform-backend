@@ -1,0 +1,6 @@
+CREATE TABLE app_metadata (
+    id BIGSERIAL PRIMARY KEY,
+    property_key VARCHAR(100) NOT NULL UNIQUE,
+    property_value VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
