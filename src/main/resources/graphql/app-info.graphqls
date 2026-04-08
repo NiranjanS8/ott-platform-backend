@@ -1,6 +1,7 @@
 type Query {
   health: String!
   appInfo: AppInfo!
+  ping(message: String): String!
 }
 
 type AppInfo {
@@ -8,4 +9,3 @@ type AppInfo {
   environment: String!
   graphqlPath: String!
 }
-

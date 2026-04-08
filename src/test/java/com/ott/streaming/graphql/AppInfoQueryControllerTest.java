@@ -3,6 +3,7 @@ package com.ott.streaming.graphql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ott.streaming.config.properties.AppProperties;
+import com.ott.streaming.exception.GraphQlExceptionHandler;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
@@ -12,7 +13,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.graphql.test.tester.GraphQlTester;
 
 @GraphQlTest(AppInfoQueryController.class)
-@Import(AppInfoQueryControllerTest.TestConfig.class)
+@Import({AppInfoQueryControllerTest.TestConfig.class, GraphQlExceptionHandler.class})
 class AppInfoQueryControllerTest {
 
     @Autowired
@@ -49,6 +50,21 @@ class AppInfoQueryControllerTest {
                 .path("health")
                 .entity(String.class)
                 .isEqualTo("UP");
+    }
+
+    @Test
+    void returnsValidationFriendlyErrorForBlankPingMessage() {
+        graphQlTester.document("""
+                query {
+                  ping(message: "   ")
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).contains("Message must not be blank");
+                });
     }
 
     @TestConfiguration
