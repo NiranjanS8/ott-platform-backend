@@ -4,6 +4,7 @@ import com.ott.streaming.dto.auth.AuthResponse;
 import com.ott.streaming.dto.auth.AuthUser;
 import com.ott.streaming.dto.auth.LoginInput;
 import com.ott.streaming.dto.auth.RegisterInput;
+import com.ott.streaming.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -15,14 +16,20 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class AuthGraphQlController {
 
+    private final AuthService authService;
+
+    public AuthGraphQlController(AuthService authService) {
+        this.authService = authService;
+    }
+
     @MutationMapping
     public AuthResponse register(@Argument @Valid RegisterInput input) {
-        throw new UnsupportedOperationException("Register mutation is not implemented yet");
+        return authService.register(input);
     }
 
     @MutationMapping
     public AuthResponse login(@Argument @Valid LoginInput input) {
-        throw new UnsupportedOperationException("Login mutation is not implemented yet");
+        return authService.login(input);
     }
 
     @QueryMapping
