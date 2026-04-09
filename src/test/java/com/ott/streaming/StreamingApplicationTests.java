@@ -2,6 +2,9 @@ package com.ott.streaming;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import com.ott.streaming.repository.UserRepository;
 
 @SpringBootTest(properties = {
         "spring.autoconfigure.exclude=" +
@@ -10,6 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
                 "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration"
 })
 class StreamingApplicationTests {
+
+    @MockitoBean
+    UserRepository userRepository;
 
     @Test
     void contextLoads() {
