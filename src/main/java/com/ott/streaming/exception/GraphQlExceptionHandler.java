@@ -14,7 +14,7 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
     protected GraphQLError resolveToSingleError(Throwable ex, DataFetchingEnvironment env) {
         if (ex instanceof ApiException apiException) {
             return GraphqlErrorBuilder.newError(env)
-                    .errorType(ErrorType.BAD_REQUEST)
+                    .errorType(apiException.getErrorType())
                     .message(apiException.getMessage())
                     .build();
         }
@@ -25,4 +25,3 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
                 .build();
     }
 }
-
