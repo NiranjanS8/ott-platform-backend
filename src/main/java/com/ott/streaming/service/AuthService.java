@@ -11,6 +11,7 @@ import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.security.JwtService;
 import java.util.Locale;
 import org.springframework.graphql.execution.ErrorType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +57,22 @@ public class AuthService {
         }
 
         return buildAuthResponse(user);
+    }
+
+    public AuthUser getCurrentUser(String email) {
+        if (email == null || email.isBlank()) {
+            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+        }
+
+        User user = userRepository.findByEmail(normalizeEmail(email))
+                .orElseThrow(() -> new ApiException("Authenticated user not found", ErrorType.UNAUTHORIZED));
+
+        return toAuthUser(user);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public String adminStatus() {
+        return "ADMIN_ACCESS_GRANTED";
     }
 
     private AuthResponse buildAuthResponse(User user) {

@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
 
@@ -33,7 +34,12 @@ public class AuthGraphQlController {
     }
 
     @QueryMapping
-    public AuthUser me() {
-        throw new UnsupportedOperationException("Me query is not implemented yet");
+    public AuthUser me(@AuthenticationPrincipal(expression = "username") String email) {
+        return authService.getCurrentUser(email);
+    }
+
+    @QueryMapping
+    public String adminStatus() {
+        return authService.adminStatus();
     }
 }

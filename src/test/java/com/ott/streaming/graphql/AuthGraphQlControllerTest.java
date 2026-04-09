@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.graphql.test.tester.GraphQlTester;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @GraphQlTest(AuthGraphQlController.class)
@@ -100,6 +101,38 @@ class AuthGraphQlControllerTest {
                             .contains("Email must be valid")
                             .contains("Password must be at least 8 characters and include uppercase, lowercase, number, and special character");
                 });
+    }
+
+    @Test
+    @WithMockUser(username = "member@example.com", roles = "USER")
+    void meQueryReturnsAuthenticatedUser() {
+        when(authService.getCurrentUser("member@example.com")).thenReturn(sampleResponse("member@example.com", Role.USER).user());
+
+        graphQlTester.document("""
+                query {
+                  me {
+                    email
+                    role
+                  }
+                }
+                """)
+                .execute()
+                .path("me.email").entity(String.class).isEqualTo("member@example.com")
+                .path("me.role").entity(String.class).isEqualTo("USER");
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void adminStatusQueryReturnsValueForAdmin() {
+        when(authService.adminStatus()).thenReturn("ADMIN_ACCESS_GRANTED");
+
+        graphQlTester.document("""
+                query {
+                  adminStatus
+                }
+                """)
+                .execute()
+                .path("adminStatus").entity(String.class).isEqualTo("ADMIN_ACCESS_GRANTED");
     }
 
     private AuthResponse sampleResponse(String email, Role role) {

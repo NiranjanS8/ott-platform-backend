@@ -113,6 +113,21 @@ class AuthServiceTest {
                 .hasMessage("Invalid email or password");
     }
 
+    @Test
+    void getCurrentUserReturnsAuthenticatedUser() {
+        User user = existingUser();
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+
+        assertThat(authService.getCurrentUser(" Admin@Example.com ").email()).isEqualTo("admin@example.com");
+    }
+
+    @Test
+    void getCurrentUserRejectsMissingAuthentication() {
+        assertThatThrownBy(() -> authService.getCurrentUser(null))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Authentication is required");
+    }
+
     private User existingUser() {
         User user = new User();
         user.setId(9L);
