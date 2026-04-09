@@ -1,0 +1,38 @@
+extend type Query {
+  me: AuthUser!
+}
+
+type Mutation {
+  register(input: RegisterInput!): AuthResponse!
+  login(input: LoginInput!): AuthResponse!
+}
+
+input RegisterInput {
+  name: String!
+  email: String!
+  password: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+type AuthResponse {
+  accessToken: String!
+  user: AuthUser!
+}
+
+type AuthUser {
+  id: ID!
+  name: String!
+  email: String!
+  role: Role!
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum Role {
+  USER
+  ADMIN
+}
