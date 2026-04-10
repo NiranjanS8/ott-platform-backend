@@ -1,0 +1,191 @@
+extend type Query {
+  movies: [Movie!]!
+  movie(id: ID!): Movie
+  seriesList: [Series!]!
+  series(id: ID!): Series
+  season(id: ID!): Season
+  episode(id: ID!): Episode
+}
+
+extend type Mutation {
+  createGenre(input: CreateGenreInput!): Genre!
+  updateGenre(id: ID!, input: UpdateGenreInput!): Genre!
+  deleteGenre(id: ID!): Boolean!
+
+  createPerson(input: CreatePersonInput!): Person!
+  updatePerson(id: ID!, input: UpdatePersonInput!): Person!
+  deletePerson(id: ID!): Boolean!
+
+  createMovie(input: CreateMovieInput!): Movie!
+  updateMovie(id: ID!, input: UpdateMovieInput!): Movie!
+  deleteMovie(id: ID!): Boolean!
+
+  createSeries(input: CreateSeriesInput!): Series!
+  updateSeries(id: ID!, input: UpdateSeriesInput!): Series!
+  deleteSeries(id: ID!): Boolean!
+
+  createSeason(input: CreateSeasonInput!): Season!
+  updateSeason(id: ID!, input: UpdateSeasonInput!): Season!
+  deleteSeason(id: ID!): Boolean!
+
+  createEpisode(input: CreateEpisodeInput!): Episode!
+  updateEpisode(id: ID!, input: UpdateEpisodeInput!): Episode!
+  deleteEpisode(id: ID!): Boolean!
+}
+
+type Genre {
+  id: ID!
+  name: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Person {
+  id: ID!
+  name: String!
+  biography: String
+  profileImageUrl: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Movie {
+  id: ID!
+  title: String!
+  description: String
+  releaseDate: String
+  durationMinutes: Int
+  maturityRating: String
+  genres: [Genre!]!
+  cast: [Person!]!
+  directors: [Person!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Series {
+  id: ID!
+  title: String!
+  description: String
+  releaseDate: String
+  endDate: String
+  maturityRating: String
+  genres: [Genre!]!
+  cast: [Person!]!
+  directors: [Person!]!
+  seasons: [Season!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Season {
+  id: ID!
+  title: String!
+  seasonNumber: Int!
+  episodes: [Episode!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Episode {
+  id: ID!
+  title: String!
+  episodeNumber: Int!
+  description: String
+  durationMinutes: Int
+  releaseDate: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+input CreateGenreInput {
+  name: String!
+}
+
+input UpdateGenreInput {
+  name: String!
+}
+
+input CreatePersonInput {
+  name: String!
+  biography: String
+  profileImageUrl: String
+}
+
+input UpdatePersonInput {
+  name: String!
+  biography: String
+  profileImageUrl: String
+}
+
+input CreateMovieInput {
+  title: String!
+  description: String
+  releaseDate: String
+  durationMinutes: Int
+  maturityRating: String
+  genreIds: [ID!]!
+  castIds: [ID!]!
+  directorIds: [ID!]!
+}
+
+input UpdateMovieInput {
+  title: String!
+  description: String
+  releaseDate: String
+  durationMinutes: Int
+  maturityRating: String
+  genreIds: [ID!]!
+  castIds: [ID!]!
+  directorIds: [ID!]!
+}
+
+input CreateSeriesInput {
+  title: String!
+  description: String
+  releaseDate: String
+  endDate: String
+  maturityRating: String
+  genreIds: [ID!]!
+  castIds: [ID!]!
+  directorIds: [ID!]!
+}
+
+input UpdateSeriesInput {
+  title: String!
+  description: String
+  releaseDate: String
+  endDate: String
+  maturityRating: String
+  genreIds: [ID!]!
+  castIds: [ID!]!
+  directorIds: [ID!]!
+}
+
+input CreateSeasonInput {
+  seriesId: ID!
+  title: String!
+  seasonNumber: Int!
+}
+
+input UpdateSeasonInput {
+  title: String!
+  seasonNumber: Int!
+}
+
+input CreateEpisodeInput {
+  seasonId: ID!
+  title: String!
+  episodeNumber: Int!
+  description: String
+  durationMinutes: Int
+  releaseDate: String
+}
+
+input UpdateEpisodeInput {
+  title: String!
+  episodeNumber: Int!
+  description: String
+  durationMinutes: Int
+  releaseDate: String
+}
