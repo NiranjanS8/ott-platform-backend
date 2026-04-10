@@ -99,32 +99,32 @@ public class ContentGraphQlController {
 
     @MutationMapping
     public SeasonPayload createSeason(@Argument @Valid CreateSeasonInput input) {
-        throw new UnsupportedOperationException("createSeason is not implemented yet");
+        return contentAdminService.createSeason(input);
     }
 
     @MutationMapping
     public SeasonPayload updateSeason(@Argument Long id, @Argument @Valid UpdateSeasonInput input) {
-        throw new UnsupportedOperationException("updateSeason is not implemented yet");
+        return contentAdminService.updateSeason(id, input);
     }
 
     @MutationMapping
     public Boolean deleteSeason(@Argument Long id) {
-        throw new UnsupportedOperationException("deleteSeason is not implemented yet");
+        return contentAdminService.deleteSeason(id);
     }
 
     @MutationMapping
     public EpisodePayload createEpisode(@Argument @Valid CreateEpisodeInput input) {
-        throw new UnsupportedOperationException("createEpisode is not implemented yet");
+        return contentAdminService.createEpisode(input);
     }
 
     @MutationMapping
     public EpisodePayload updateEpisode(@Argument Long id, @Argument @Valid UpdateEpisodeInput input) {
-        throw new UnsupportedOperationException("updateEpisode is not implemented yet");
+        return contentAdminService.updateEpisode(id, input);
     }
 
     @MutationMapping
     public Boolean deleteEpisode(@Argument Long id) {
-        throw new UnsupportedOperationException("deleteEpisode is not implemented yet");
+        return contentAdminService.deleteEpisode(id);
     }
 
     @QueryMapping

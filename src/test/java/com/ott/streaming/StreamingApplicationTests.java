@@ -7,6 +7,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.EpisodeRepository;
+import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
 
@@ -32,6 +34,12 @@ class StreamingApplicationTests {
 
     @MockitoBean
     SeriesRepository seriesRepository;
+
+    @MockitoBean
+    SeasonRepository seasonRepository;
+
+    @MockitoBean
+    EpisodeRepository episodeRepository;
 
     @Test
     void contextLoads() {

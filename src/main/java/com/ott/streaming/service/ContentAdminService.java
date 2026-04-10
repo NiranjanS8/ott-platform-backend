@@ -3,23 +3,33 @@ package com.ott.streaming.service;
 import com.ott.streaming.dto.content.CreateGenreInput;
 import com.ott.streaming.dto.content.CreateMovieInput;
 import com.ott.streaming.dto.content.CreatePersonInput;
+import com.ott.streaming.dto.content.CreateEpisodeInput;
+import com.ott.streaming.dto.content.CreateSeasonInput;
 import com.ott.streaming.dto.content.CreateSeriesInput;
+import com.ott.streaming.dto.content.EpisodePayload;
 import com.ott.streaming.dto.content.GenrePayload;
 import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
+import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.content.UpdateEpisodeInput;
 import com.ott.streaming.dto.content.UpdateGenreInput;
 import com.ott.streaming.dto.content.UpdateMovieInput;
 import com.ott.streaming.dto.content.UpdatePersonInput;
+import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
+import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
+import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
 import com.ott.streaming.exception.ApiException;
+import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
@@ -36,15 +46,21 @@ public class ContentAdminService {
     private final PersonRepository personRepository;
     private final MovieRepository movieRepository;
     private final SeriesRepository seriesRepository;
+    private final SeasonRepository seasonRepository;
+    private final EpisodeRepository episodeRepository;
 
     public ContentAdminService(GenreRepository genreRepository,
                                PersonRepository personRepository,
                                MovieRepository movieRepository,
-                               SeriesRepository seriesRepository) {
+                               SeriesRepository seriesRepository,
+                               SeasonRepository seasonRepository,
+                               EpisodeRepository episodeRepository) {
         this.genreRepository = genreRepository;
         this.personRepository = personRepository;
         this.movieRepository = movieRepository;
         this.seriesRepository = seriesRepository;
+        this.seasonRepository = seasonRepository;
+        this.episodeRepository = episodeRepository;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -167,6 +183,72 @@ public class ContentAdminService {
         return true;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    public SeasonPayload createSeason(CreateSeasonInput input) {
+        Series series = seriesRepository.findById(input.seriesId())
+                .orElseThrow(() -> new ApiException("Series not found"));
+
+        ensureSeasonNumberAvailable(series.getId(), input.seasonNumber(), null);
+
+        Season season = new Season();
+        season.setSeries(series);
+        applySeasonInput(season, input.title(), input.seasonNumber());
+        return toSeasonPayload(seasonRepository.save(season));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public SeasonPayload updateSeason(Long id, UpdateSeasonInput input) {
+        Season season = seasonRepository.findById(id)
+                .orElseThrow(() -> new ApiException("Season not found"));
+
+        ensureSeasonNumberAvailable(season.getSeries().getId(), input.seasonNumber(), id);
+        applySeasonInput(season, input.title(), input.seasonNumber());
+        return toSeasonPayload(seasonRepository.save(season));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public boolean deleteSeason(Long id) {
+        if (!seasonRepository.existsById(id)) {
+            throw new ApiException("Season not found");
+        }
+
+        seasonRepository.deleteById(id);
+        return true;
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public EpisodePayload createEpisode(CreateEpisodeInput input) {
+        Season season = seasonRepository.findById(input.seasonId())
+                .orElseThrow(() -> new ApiException("Season not found"));
+
+        ensureEpisodeNumberAvailable(season.getId(), input.episodeNumber(), null);
+
+        Episode episode = new Episode();
+        episode.setSeason(season);
+        applyEpisodeInput(episode, input.title(), input.episodeNumber(), input.description(), input.durationMinutes(), input.releaseDate());
+        return toEpisodePayload(episodeRepository.save(episode));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public EpisodePayload updateEpisode(Long id, UpdateEpisodeInput input) {
+        Episode episode = episodeRepository.findById(id)
+                .orElseThrow(() -> new ApiException("Episode not found"));
+
+        ensureEpisodeNumberAvailable(episode.getSeason().getId(), input.episodeNumber(), id);
+        applyEpisodeInput(episode, input.title(), input.episodeNumber(), input.description(), input.durationMinutes(), input.releaseDate());
+        return toEpisodePayload(episodeRepository.save(episode));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public boolean deleteEpisode(Long id) {
+        if (!episodeRepository.existsById(id)) {
+            throw new ApiException("Episode not found");
+        }
+
+        episodeRepository.deleteById(id);
+        return true;
+    }
+
     private GenrePayload toGenrePayload(Genre genre) {
         return new GenrePayload(
                 genre.getId(),
@@ -210,6 +292,31 @@ public class ContentAdminService {
                 series.getMaturityRating(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()
+        );
+    }
+
+    private SeasonPayload toSeasonPayload(Season season) {
+        return new SeasonPayload(
+                season.getId(),
+                season.getSeries().getId(),
+                season.getTitle(),
+                season.getSeasonNumber(),
+                season.getCreatedAt(),
+                season.getUpdatedAt()
+        );
+    }
+
+    private EpisodePayload toEpisodePayload(Episode episode) {
+        return new EpisodePayload(
+                episode.getId(),
+                episode.getSeason().getId(),
+                episode.getTitle(),
+                episode.getEpisodeNumber(),
+                episode.getDescription(),
+                episode.getDurationMinutes(),
+                formatDate(episode.getReleaseDate()),
+                episode.getCreatedAt(),
+                episode.getUpdatedAt()
         );
     }
 
@@ -257,6 +364,24 @@ public class ContentAdminService {
         series.setDirectors(resolvePersons(input.directorIds(), "director"));
     }
 
+    private void applySeasonInput(Season season, String title, Integer seasonNumber) {
+        season.setTitle(normalizeName(title));
+        season.setSeasonNumber(seasonNumber);
+    }
+
+    private void applyEpisodeInput(Episode episode,
+                                   String title,
+                                   Integer episodeNumber,
+                                   String description,
+                                   Integer durationMinutes,
+                                   String releaseDate) {
+        episode.setTitle(normalizeName(title));
+        episode.setEpisodeNumber(episodeNumber);
+        episode.setDescription(normalizeOptionalText(description));
+        episode.setDurationMinutes(durationMinutes);
+        episode.setReleaseDate(parseDate(releaseDate, "episode release date"));
+    }
+
     private Set<Genre> resolveGenres(Set<Long> genreIds) {
         List<Genre> genres = genreRepository.findAllById(genreIds);
         if (genres.size() != genreIds.size()) {
@@ -273,6 +398,36 @@ public class ContentAdminService {
         }
 
         return new HashSet<>(persons);
+    }
+
+    private void ensureSeasonNumberAvailable(Long seriesId, Integer seasonNumber, Long currentSeasonId) {
+        if (!seasonRepository.existsBySeriesIdAndSeasonNumber(seriesId, seasonNumber)) {
+            return;
+        }
+
+        if (currentSeasonId != null
+                && seasonRepository.findByIdAndSeriesId(currentSeasonId, seriesId)
+                .filter(season -> season.getSeasonNumber().equals(seasonNumber))
+                .isPresent()) {
+            return;
+        }
+
+        throw new ApiException("Season number already exists for this series");
+    }
+
+    private void ensureEpisodeNumberAvailable(Long seasonId, Integer episodeNumber, Long currentEpisodeId) {
+        if (!episodeRepository.existsBySeasonIdAndEpisodeNumber(seasonId, episodeNumber)) {
+            return;
+        }
+
+        if (currentEpisodeId != null
+                && episodeRepository.findByIdAndSeasonId(currentEpisodeId, seasonId)
+                .filter(episode -> episode.getEpisodeNumber().equals(episodeNumber))
+                .isPresent()) {
+            return;
+        }
+
+        throw new ApiException("Episode number already exists for this season");
     }
 
     private String normalizeName(String value) {

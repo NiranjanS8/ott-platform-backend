@@ -9,19 +9,27 @@ import static org.mockito.Mockito.when;
 import com.ott.streaming.dto.content.CreateGenreInput;
 import com.ott.streaming.dto.content.CreateMovieInput;
 import com.ott.streaming.dto.content.CreatePersonInput;
+import com.ott.streaming.dto.content.CreateEpisodeInput;
+import com.ott.streaming.dto.content.CreateSeasonInput;
 import com.ott.streaming.dto.content.CreateSeriesInput;
 import com.ott.streaming.dto.content.UpdateGenreInput;
 import com.ott.streaming.dto.content.UpdateMovieInput;
 import com.ott.streaming.dto.content.UpdatePersonInput;
+import com.ott.streaming.dto.content.UpdateEpisodeInput;
+import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
+import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
+import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
 import com.ott.streaming.exception.ApiException;
+import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -51,11 +59,24 @@ class ContentAdminServiceTest {
     @Mock
     private SeriesRepository seriesRepository;
 
+    @Mock
+    private SeasonRepository seasonRepository;
+
+    @Mock
+    private EpisodeRepository episodeRepository;
+
     private ContentAdminService contentAdminService;
 
     @BeforeEach
     void setUp() {
-        contentAdminService = new ContentAdminService(genreRepository, personRepository, movieRepository, seriesRepository);
+        contentAdminService = new ContentAdminService(
+                genreRepository,
+                personRepository,
+                movieRepository,
+                seriesRepository,
+                seasonRepository,
+                episodeRepository
+        );
     }
 
     @Test
@@ -243,5 +264,92 @@ class ContentAdminServiceTest {
         person.setId(id);
         person.setName(name);
         return person;
+    }
+
+    @Test
+    void createSeasonRejectsMissingSeries() {
+        when(seriesRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentAdminService.createSeason(new CreateSeasonInput(99L, "Season 1", 1)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Series not found");
+    }
+
+    @Test
+    void createSeasonRejectsDuplicateOrderWithinSeries() {
+        Series series = new Series();
+        series.setId(5L);
+        when(seriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(seasonRepository.existsBySeriesIdAndSeasonNumber(5L, 1)).thenReturn(true);
+
+        assertThatThrownBy(() -> contentAdminService.createSeason(new CreateSeasonInput(5L, "Season 1", 1)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Season number already exists for this series");
+    }
+
+    @Test
+    void createSeasonPersistsWithParentSeries() {
+        Series series = new Series();
+        series.setId(5L);
+        when(seriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(seasonRepository.existsBySeriesIdAndSeasonNumber(5L, 2)).thenReturn(false);
+        when(seasonRepository.save(any(Season.class))).thenAnswer(invocation -> {
+            Season season = invocation.getArgument(0);
+            season.setId(8L);
+            ReflectionTestUtils.setField(season, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+            ReflectionTestUtils.setField(season, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+            return season;
+        });
+
+        var payload = contentAdminService.createSeason(new CreateSeasonInput(5L, "  Season 2 ", 2));
+
+        assertThat(payload.id()).isEqualTo(8L);
+        assertThat(payload.seriesId()).isEqualTo(5L);
+        assertThat(payload.title()).isEqualTo("Season 2");
+        assertThat(payload.seasonNumber()).isEqualTo(2);
+    }
+
+    @Test
+    void createEpisodeRejectsMissingSeason() {
+        when(seasonRepository.findById(77L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> contentAdminService.createEpisode(new CreateEpisodeInput(77L, "Episode 1", 1, null, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Season not found");
+    }
+
+    @Test
+    void createEpisodeRejectsDuplicateOrderWithinSeason() {
+        Season season = new Season();
+        season.setId(6L);
+        when(seasonRepository.findById(6L)).thenReturn(Optional.of(season));
+        when(episodeRepository.existsBySeasonIdAndEpisodeNumber(6L, 1)).thenReturn(true);
+
+        assertThatThrownBy(() -> contentAdminService.createEpisode(new CreateEpisodeInput(6L, "Episode 1", 1, null, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Episode number already exists for this season");
+    }
+
+    @Test
+    void createEpisodePersistsWithParentSeason() {
+        Season season = new Season();
+        season.setId(6L);
+        when(seasonRepository.findById(6L)).thenReturn(Optional.of(season));
+        when(episodeRepository.existsBySeasonIdAndEpisodeNumber(6L, 2)).thenReturn(false);
+        when(episodeRepository.save(any(Episode.class))).thenAnswer(invocation -> {
+            Episode episode = invocation.getArgument(0);
+            episode.setId(9L);
+            ReflectionTestUtils.setField(episode, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+            ReflectionTestUtils.setField(episode, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+            return episode;
+        });
+
+        var payload = contentAdminService.createEpisode(new CreateEpisodeInput(6L, "  Episode 2 ", 2, "  Plot  ", 42, "2020-01-01"));
+
+        assertThat(payload.id()).isEqualTo(9L);
+        assertThat(payload.seasonId()).isEqualTo(6L);
+        assertThat(payload.title()).isEqualTo("Episode 2");
+        assertThat(payload.episodeNumber()).isEqualTo(2);
+        assertThat(payload.releaseDate()).isEqualTo("2020-01-01");
     }
 }

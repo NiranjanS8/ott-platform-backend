@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
+import com.ott.streaming.entity.Season;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.EpisodeRepository;
+import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 
 @SpringBootTest(
@@ -66,6 +69,12 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private SeriesRepository seriesRepository;
+
+    @MockitoBean
+    private SeasonRepository seasonRepository;
+
+    @MockitoBean
+    private EpisodeRepository episodeRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -206,6 +215,43 @@ class AuthSecurityIntegrationTest {
 
         assertThat(json.at("/data/createMovie/id").asText()).isEqualTo("12");
         assertThat(json.at("/data/createMovie/title").asText()).isEqualTo("The Matrix");
+    }
+
+    @Test
+    void createSeasonWorksForAdminUser() throws Exception {
+        User user = buildUser(7L, "Admin", "admin@example.com", Role.ADMIN);
+        Series series = new Series();
+        series.setId(4L);
+        Season season = new Season();
+        season.setId(13L);
+        season.setTitle("Season 1");
+        season.setSeasonNumber(1);
+        season.setSeries(series);
+        ReflectionTestUtils.setField(season, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(season, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(seriesRepository.findById(4L)).thenReturn(Optional.of(series));
+        when(seasonRepository.existsBySeriesIdAndSeasonNumber(4L, 1)).thenReturn(false);
+        when(seasonRepository.save(any(Season.class))).thenReturn(season);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createSeason(input: {
+                    seriesId: "4"
+                    title: "Season 1"
+                    seasonNumber: 1
+                  }) {
+                    id
+                    title
+                    seasonNumber
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/createSeason/id").asText()).isEqualTo("13");
+        assertThat(json.at("/data/createSeason.title").asText()).isEqualTo("Season 1");
+        assertThat(json.at("/data/createSeason.seasonNumber").asInt()).isEqualTo(1);
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {

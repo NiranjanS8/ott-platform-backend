@@ -7,7 +7,9 @@ import static org.mockito.Mockito.when;
 import com.ott.streaming.dto.content.GenrePayload;
 import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
+import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.content.EpisodePayload;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import java.time.Instant;
@@ -155,5 +157,64 @@ class ContentGraphQlControllerTest {
                 .path("createSeries.id").entity(String.class).isEqualTo("4")
                 .path("createSeries.title").entity(String.class).isEqualTo("Dark")
                 .path("createSeries.endDate").entity(String.class).isEqualTo("2020-06-27");
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void createSeasonReturnsPayloadForAdmin() {
+        when(contentAdminService.createSeason(any())).thenReturn(
+                new SeasonPayload(5L, 4L, "Season 1", 1,
+                        Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
+        );
+
+        graphQlTester.document("""
+                mutation {
+                  createSeason(input: {
+                    seriesId: "4"
+                    title: "Season 1"
+                    seasonNumber: 1
+                  }) {
+                    id
+                    seriesId
+                    title
+                    seasonNumber
+                  }
+                }
+                """)
+                .execute()
+                .path("createSeason.id").entity(String.class).isEqualTo("5")
+                .path("createSeason.seriesId").entity(String.class).isEqualTo("4")
+                .path("createSeason.seasonNumber").entity(Integer.class).isEqualTo(1);
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void createEpisodeReturnsPayloadForAdmin() {
+        when(contentAdminService.createEpisode(any())).thenReturn(
+                new EpisodePayload(6L, 5L, "Episode 1", 1, "Pilot", 45, "2020-01-01",
+                        Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
+        );
+
+        graphQlTester.document("""
+                mutation {
+                  createEpisode(input: {
+                    seasonId: "5"
+                    title: "Episode 1"
+                    episodeNumber: 1
+                    description: "Pilot"
+                    durationMinutes: 45
+                    releaseDate: "2020-01-01"
+                  }) {
+                    id
+                    seasonId
+                    title
+                    episodeNumber
+                  }
+                }
+                """)
+                .execute()
+                .path("createEpisode.id").entity(String.class).isEqualTo("6")
+                .path("createEpisode.seasonId").entity(String.class).isEqualTo("5")
+                .path("createEpisode.episodeNumber").entity(Integer.class).isEqualTo(1);
     }
 }
