@@ -8,6 +8,7 @@ import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
 import com.ott.streaming.repository.EpisodeRepository;
+import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
@@ -40,6 +41,9 @@ class StreamingApplicationTests {
 
     @MockitoBean
     EpisodeRepository episodeRepository;
+
+    @MockitoBean
+    ReviewRepository reviewRepository;
 
     @Test
     void contextLoads() {
