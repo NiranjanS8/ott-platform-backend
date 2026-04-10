@@ -5,7 +5,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.ott.streaming.repository.GenreRepository;
+import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
 
 @SpringBootTest(properties = {
@@ -24,6 +26,12 @@ class StreamingApplicationTests {
 
     @MockitoBean
     PersonRepository personRepository;
+
+    @MockitoBean
+    MovieRepository movieRepository;
+
+    @MockitoBean
+    SeriesRepository seriesRepository;
 
     @Test
     void contextLoads() {

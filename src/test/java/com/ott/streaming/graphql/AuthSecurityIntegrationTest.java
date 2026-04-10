@@ -13,6 +13,8 @@ import com.ott.streaming.security.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ott.streaming.entity.Genre;
+import com.ott.streaming.entity.Movie;
+import com.ott.streaming.entity.Person;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import com.ott.streaming.repository.GenreRepository;
+import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.SeriesRepository;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -56,6 +60,12 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private PersonRepository personRepository;
+
+    @MockitoBean
+    private MovieRepository movieRepository;
+
+    @MockitoBean
+    private SeriesRepository seriesRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -152,6 +162,52 @@ class AuthSecurityIntegrationTest {
         assertThat(json.at("/data/createGenre/name").asText()).isEqualTo("Action");
     }
 
+    @Test
+    void createMovieWorksForAdminUser() throws Exception {
+        User user = buildUser(6L, "Admin", "admin@example.com", Role.ADMIN);
+        Genre genre = new Genre();
+        genre.setId(1L);
+        genre.setName("Action");
+        Person actor = buildPerson(2L, "Keanu Reeves");
+        Person director = buildPerson(3L, "Lana Wachowski");
+        Movie movie = new Movie();
+        movie.setId(12L);
+        movie.setTitle("The Matrix");
+        movie.setDescription("Sci-fi action film");
+        movie.setReleaseDate(java.time.LocalDate.parse("1999-03-31"));
+        movie.setDurationMinutes(136);
+        movie.setMaturityRating("R");
+        ReflectionTestUtils.setField(movie, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(movie, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(genreRepository.findAllById(java.util.Set.of(1L))).thenReturn(java.util.List.of(genre));
+        when(personRepository.findAllById(java.util.Set.of(2L))).thenReturn(java.util.List.of(actor));
+        when(personRepository.findAllById(java.util.Set.of(3L))).thenReturn(java.util.List.of(director));
+        when(movieRepository.save(any(Movie.class))).thenReturn(movie);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createMovie(input: {
+                    title: "The Matrix"
+                    description: "Sci-fi action film"
+                    releaseDate: "1999-03-31"
+                    durationMinutes: 136
+                    maturityRating: "R"
+                    genreIds: ["1"]
+                    castIds: ["2"]
+                    directorIds: ["3"]
+                  }) {
+                    id
+                    title
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/createMovie/id").asText()).isEqualTo("12");
+        assertThat(json.at("/data/createMovie/title").asText()).isEqualTo("The Matrix");
+    }
+
     private JsonNode executeGraphQl(String document, User user) throws Exception {
         String token = jwtService.generateAccessToken(user);
         String payload = objectMapper.writeValueAsString(new GraphQlRequest(document));
@@ -176,6 +232,15 @@ class AuthSecurityIntegrationTest {
         ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-04-09T12:00:00Z"));
         ReflectionTestUtils.setField(user, "updatedAt", Instant.parse("2026-04-09T12:00:00Z"));
         return user;
+    }
+
+    private Person buildPerson(Long id, String name) {
+        Person person = new Person();
+        person.setId(id);
+        person.setName(name);
+        ReflectionTestUtils.setField(person, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(person, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return person;
     }
 
     private record GraphQlRequest(String query) {

@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.content.GenrePayload;
+import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
+import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import java.time.Instant;
@@ -89,5 +91,69 @@ class ContentGraphQlControllerTest {
                     assertThat(errors).hasSize(1);
                     assertThat(errors.getFirst().getMessage()).contains("Genre name is required");
                 });
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void createMovieReturnsPayloadForAdmin() {
+        when(contentAdminService.createMovie(any())).thenReturn(
+                new MoviePayload(3L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                        Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
+        );
+
+        graphQlTester.document("""
+                mutation {
+                  createMovie(input: {
+                    title: "The Matrix"
+                    description: "Sci-fi action film"
+                    releaseDate: "1999-03-31"
+                    durationMinutes: 136
+                    maturityRating: "R"
+                    genreIds: ["1"]
+                    castIds: ["2"]
+                    directorIds: ["3"]
+                  }) {
+                    id
+                    title
+                    releaseDate
+                  }
+                }
+                """)
+                .execute()
+                .path("createMovie.id").entity(String.class).isEqualTo("3")
+                .path("createMovie.title").entity(String.class).isEqualTo("The Matrix")
+                .path("createMovie.releaseDate").entity(String.class).isEqualTo("1999-03-31");
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void createSeriesReturnsPayloadForAdmin() {
+        when(contentAdminService.createSeries(any())).thenReturn(
+                new SeriesPayload(4L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA",
+                        Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
+        );
+
+        graphQlTester.document("""
+                mutation {
+                  createSeries(input: {
+                    title: "Dark"
+                    description: "Mystery series"
+                    releaseDate: "2017-12-01"
+                    endDate: "2020-06-27"
+                    maturityRating: "TV-MA"
+                    genreIds: ["1"]
+                    castIds: ["2"]
+                    directorIds: ["3"]
+                  }) {
+                    id
+                    title
+                    endDate
+                  }
+                }
+                """)
+                .execute()
+                .path("createSeries.id").entity(String.class).isEqualTo("4")
+                .path("createSeries.title").entity(String.class).isEqualTo("Dark")
+                .path("createSeries.endDate").entity(String.class).isEqualTo("2020-06-27");
     }
 }

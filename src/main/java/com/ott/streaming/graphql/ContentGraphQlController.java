@@ -69,32 +69,32 @@ public class ContentGraphQlController {
 
     @MutationMapping
     public MoviePayload createMovie(@Argument @Valid CreateMovieInput input) {
-        throw new UnsupportedOperationException("createMovie is not implemented yet");
+        return contentAdminService.createMovie(input);
     }
 
     @MutationMapping
     public MoviePayload updateMovie(@Argument Long id, @Argument @Valid UpdateMovieInput input) {
-        throw new UnsupportedOperationException("updateMovie is not implemented yet");
+        return contentAdminService.updateMovie(id, input);
     }
 
     @MutationMapping
     public Boolean deleteMovie(@Argument Long id) {
-        throw new UnsupportedOperationException("deleteMovie is not implemented yet");
+        return contentAdminService.deleteMovie(id);
     }
 
     @MutationMapping
     public SeriesPayload createSeries(@Argument @Valid CreateSeriesInput input) {
-        throw new UnsupportedOperationException("createSeries is not implemented yet");
+        return contentAdminService.createSeries(input);
     }
 
     @MutationMapping
     public SeriesPayload updateSeries(@Argument Long id, @Argument @Valid UpdateSeriesInput input) {
-        throw new UnsupportedOperationException("updateSeries is not implemented yet");
+        return contentAdminService.updateSeries(id, input);
     }
 
     @MutationMapping
     public Boolean deleteSeries(@Argument Long id) {
-        throw new UnsupportedOperationException("deleteSeries is not implemented yet");
+        return contentAdminService.deleteSeries(id);
     }
 
     @MutationMapping
