@@ -16,6 +16,7 @@ import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
 import com.ott.streaming.entity.Season;
+import com.ott.streaming.entity.Series;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -250,8 +251,8 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/data/createSeason/id").asText()).isEqualTo("13");
-        assertThat(json.at("/data/createSeason.title").asText()).isEqualTo("Season 1");
-        assertThat(json.at("/data/createSeason.seasonNumber").asInt()).isEqualTo(1);
+        assertThat(json.at("/data/createSeason/title").asText()).isEqualTo("Season 1");
+        assertThat(json.at("/data/createSeason/seasonNumber").asInt()).isEqualTo(1);
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {

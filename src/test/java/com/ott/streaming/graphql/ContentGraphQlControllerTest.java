@@ -12,6 +12,7 @@ import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.dto.content.EpisodePayload;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
+import com.ott.streaming.service.ContentQueryService;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ class ContentGraphQlControllerTest {
 
     @MockitoBean
     private ContentAdminService contentAdminService;
+
+    @MockitoBean
+    private ContentQueryService contentQueryService;
 
     @Test
     @WithMockUser(username = "admin@example.com", roles = "ADMIN")
@@ -175,7 +179,6 @@ class ContentGraphQlControllerTest {
                     seasonNumber: 1
                   }) {
                     id
-                    seriesId
                     title
                     seasonNumber
                   }
@@ -183,7 +186,7 @@ class ContentGraphQlControllerTest {
                 """)
                 .execute()
                 .path("createSeason.id").entity(String.class).isEqualTo("5")
-                .path("createSeason.seriesId").entity(String.class).isEqualTo("4")
+                .path("createSeason.title").entity(String.class).isEqualTo("Season 1")
                 .path("createSeason.seasonNumber").entity(Integer.class).isEqualTo(1);
     }
 
@@ -206,7 +209,6 @@ class ContentGraphQlControllerTest {
                     releaseDate: "2020-01-01"
                   }) {
                     id
-                    seasonId
                     title
                     episodeNumber
                   }
@@ -214,7 +216,7 @@ class ContentGraphQlControllerTest {
                 """)
                 .execute()
                 .path("createEpisode.id").entity(String.class).isEqualTo("6")
-                .path("createEpisode.seasonId").entity(String.class).isEqualTo("5")
+                .path("createEpisode.title").entity(String.class).isEqualTo("Episode 1")
                 .path("createEpisode.episodeNumber").entity(Integer.class).isEqualTo(1);
     }
 }

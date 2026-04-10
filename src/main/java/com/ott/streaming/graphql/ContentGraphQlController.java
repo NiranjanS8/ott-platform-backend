@@ -19,11 +19,13 @@ import com.ott.streaming.dto.content.UpdatePersonInput;
 import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
 import com.ott.streaming.service.ContentAdminService;
+import com.ott.streaming.service.ContentQueryService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
 
@@ -32,9 +34,11 @@ import org.springframework.validation.annotation.Validated;
 public class ContentGraphQlController {
 
     private final ContentAdminService contentAdminService;
+    private final ContentQueryService contentQueryService;
 
-    public ContentGraphQlController(ContentAdminService contentAdminService) {
+    public ContentGraphQlController(ContentAdminService contentAdminService, ContentQueryService contentQueryService) {
         this.contentAdminService = contentAdminService;
+        this.contentQueryService = contentQueryService;
     }
 
     @MutationMapping
@@ -129,31 +133,71 @@ public class ContentGraphQlController {
 
     @QueryMapping
     public List<MoviePayload> movies() {
-        throw new UnsupportedOperationException("movies is not implemented yet");
+        return contentQueryService.getMovies();
     }
 
     @QueryMapping
     public MoviePayload movie(@Argument Long id) {
-        throw new UnsupportedOperationException("movie is not implemented yet");
+        return contentQueryService.getMovieById(id);
     }
 
     @QueryMapping
     public List<SeriesPayload> seriesList() {
-        throw new UnsupportedOperationException("seriesList is not implemented yet");
+        return contentQueryService.getSeriesList();
     }
 
     @QueryMapping
     public SeriesPayload series(@Argument Long id) {
-        throw new UnsupportedOperationException("series is not implemented yet");
+        return contentQueryService.getSeriesById(id);
     }
 
     @QueryMapping
     public SeasonPayload season(@Argument Long id) {
-        throw new UnsupportedOperationException("season is not implemented yet");
+        return contentQueryService.getSeasonById(id);
     }
 
     @QueryMapping
     public EpisodePayload episode(@Argument Long id) {
-        throw new UnsupportedOperationException("episode is not implemented yet");
+        return contentQueryService.getEpisodeById(id);
+    }
+
+    @SchemaMapping(typeName = "Movie", field = "genres")
+    public List<GenrePayload> movieGenres(MoviePayload source) {
+        return contentQueryService.getMovieGenres(source);
+    }
+
+    @SchemaMapping(typeName = "Movie", field = "cast")
+    public List<PersonPayload> movieCast(MoviePayload source) {
+        return contentQueryService.getMovieCast(source);
+    }
+
+    @SchemaMapping(typeName = "Movie", field = "directors")
+    public List<PersonPayload> movieDirectors(MoviePayload source) {
+        return contentQueryService.getMovieDirectors(source);
+    }
+
+    @SchemaMapping(typeName = "Series", field = "genres")
+    public List<GenrePayload> seriesGenres(SeriesPayload source) {
+        return contentQueryService.getSeriesGenres(source);
+    }
+
+    @SchemaMapping(typeName = "Series", field = "cast")
+    public List<PersonPayload> seriesCast(SeriesPayload source) {
+        return contentQueryService.getSeriesCast(source);
+    }
+
+    @SchemaMapping(typeName = "Series", field = "directors")
+    public List<PersonPayload> seriesDirectors(SeriesPayload source) {
+        return contentQueryService.getSeriesDirectors(source);
+    }
+
+    @SchemaMapping(typeName = "Series", field = "seasons")
+    public List<SeasonPayload> seriesSeasons(SeriesPayload source) {
+        return contentQueryService.getSeriesSeasons(source);
+    }
+
+    @SchemaMapping(typeName = "Season", field = "episodes")
+    public List<EpisodePayload> seasonEpisodes(SeasonPayload source) {
+        return contentQueryService.getSeasonEpisodes(source);
     }
 }
