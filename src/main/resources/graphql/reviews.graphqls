@@ -1,0 +1,50 @@
+extend type Query {
+  reviews(contentType: ContentType!, contentId: ID!): [Review!]!
+}
+
+extend type Mutation {
+  addReview(input: AddReviewInput!): Review!
+  updateReview(id: ID!, input: UpdateReviewInput!): Review!
+  deleteReview(id: ID!): Boolean!
+}
+
+extend type Movie {
+  ratingSummary: RatingSummary!
+}
+
+extend type Series {
+  ratingSummary: RatingSummary!
+}
+
+type Review {
+  id: ID!
+  userId: ID!
+  contentType: ContentType!
+  contentId: ID!
+  rating: Int!
+  comment: String
+  createdAt: String!
+  updatedAt: String!
+}
+
+type RatingSummary {
+  averageRating: Float
+  reviewCount: Int!
+}
+
+enum ContentType {
+  MOVIE
+  SERIES
+}
+
+input AddReviewInput {
+  contentType: ContentType!
+  contentId: ID!
+  rating: Int!
+  comment: String
+}
+
+input UpdateReviewInput {
+  rating: Int!
+  comment: String
+}
