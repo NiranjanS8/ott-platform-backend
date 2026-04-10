@@ -8,9 +8,11 @@ import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.review.RatingSummaryPayload;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
+import com.ott.streaming.service.ReviewService;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -20,7 +22,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@GraphQlTest(ContentGraphQlController.class)
+@GraphQlTest({ContentGraphQlController.class, ReviewGraphQlController.class})
 @Import(GraphQlExceptionHandler.class)
 class ContentPublicGraphQlTest {
 
@@ -32,6 +34,9 @@ class ContentPublicGraphQlTest {
 
     @MockitoBean
     private ContentQueryService contentQueryService;
+
+    @MockitoBean
+    private ReviewService reviewService;
 
     @Test
     void moviesQueryReturnsList() {
@@ -69,6 +74,7 @@ class ContentPublicGraphQlTest {
         when(contentQueryService.getMovieDirectors(movie)).thenReturn(List.of(
                 new PersonPayload(21L, "Lana Wachowski", null, null, now(), now())
         ));
+        when(reviewService.getMovieRatingSummary(1L)).thenReturn(new RatingSummaryPayload(4.5, 2));
 
         graphQlTester.document("""
                 query {
@@ -77,6 +83,10 @@ class ContentPublicGraphQlTest {
                     genres { name }
                     cast { name }
                     directors { name }
+                    ratingSummary {
+                      averageRating
+                      reviewCount
+                    }
                   }
                 }
                 """)
@@ -84,7 +94,9 @@ class ContentPublicGraphQlTest {
                 .path("movie.title").entity(String.class).isEqualTo("The Matrix")
                 .path("movie.genres[0].name").entity(String.class).isEqualTo("Action")
                 .path("movie.cast[0].name").entity(String.class).isEqualTo("Keanu Reeves")
-                .path("movie.directors[0].name").entity(String.class).isEqualTo("Lana Wachowski");
+                .path("movie.directors[0].name").entity(String.class).isEqualTo("Lana Wachowski")
+                .path("movie.ratingSummary.averageRating").entity(Double.class).isEqualTo(4.5)
+                .path("movie.ratingSummary.reviewCount").entity(Integer.class).isEqualTo(2);
     }
 
     @Test
@@ -100,12 +112,17 @@ class ContentPublicGraphQlTest {
         ));
         when(contentQueryService.getSeriesSeasons(series)).thenReturn(List.of(season));
         when(contentQueryService.getSeasonEpisodes(season)).thenReturn(List.of(episode));
+        when(reviewService.getSeriesRatingSummary(2L)).thenReturn(new RatingSummaryPayload(4.0, 3));
 
         graphQlTester.document("""
                 query {
                   series(id: "2") {
                     title
                     genres { name }
+                    ratingSummary {
+                      averageRating
+                      reviewCount
+                    }
                     seasons {
                       title
                       episodes {
@@ -119,6 +136,8 @@ class ContentPublicGraphQlTest {
                 .execute()
                 .path("series.title").entity(String.class).isEqualTo("Dark")
                 .path("series.genres[0].name").entity(String.class).isEqualTo("Sci-Fi")
+                .path("series.ratingSummary.averageRating").entity(Double.class).isEqualTo(4.0)
+                .path("series.ratingSummary.reviewCount").entity(Integer.class).isEqualTo(3)
                 .path("series.seasons[0].title").entity(String.class).isEqualTo("Season 1")
                 .path("series.seasons[0].episodes[0].title").entity(String.class).isEqualTo("Episode 1")
                 .path("series.seasons[0].episodes[0].episodeNumber").entity(Integer.class).isEqualTo(1);

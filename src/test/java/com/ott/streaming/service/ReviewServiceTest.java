@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.review.AddReviewInput;
+import com.ott.streaming.dto.review.RatingSummaryPayload;
 import com.ott.streaming.dto.review.ReviewPayload;
 import com.ott.streaming.dto.review.UpdateReviewInput;
 import com.ott.streaming.entity.ContentType;
@@ -19,6 +20,7 @@ import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -165,6 +167,52 @@ class ReviewServiceTest {
         ))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Series not found");
+    }
+
+    @Test
+    void getReviewsReturnsNewestFirstForContent() {
+        Review newerReview = buildReview(2L, 20L, ContentType.MOVIE, 42L, 5);
+        newerReview.setComment("Newest");
+        Review olderReview = buildReview(1L, 21L, ContentType.MOVIE, 42L, 4);
+        olderReview.setComment("Older");
+
+        when(movieRepository.existsById(42L)).thenReturn(true);
+        when(reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType.MOVIE, 42L))
+                .thenReturn(List.of(newerReview, olderReview));
+
+        List<ReviewPayload> reviews = reviewService.getReviews(ContentType.MOVIE, 42L);
+
+        assertThat(reviews).hasSize(2);
+        assertThat(reviews.get(0).comment()).isEqualTo("Newest");
+        assertThat(reviews.get(1).comment()).isEqualTo("Older");
+    }
+
+    @Test
+    void getMovieRatingSummaryCalculatesAverageAndCount() {
+        when(movieRepository.existsById(42L)).thenReturn(true);
+        when(reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType.MOVIE, 42L))
+                .thenReturn(List.of(
+                        buildReview(1L, 20L, ContentType.MOVIE, 42L, 5),
+                        buildReview(2L, 21L, ContentType.MOVIE, 42L, 3),
+                        buildReview(3L, 22L, ContentType.MOVIE, 42L, 4)
+                ));
+
+        RatingSummaryPayload summary = reviewService.getMovieRatingSummary(42L);
+
+        assertThat(summary.averageRating()).isEqualTo(4.0);
+        assertThat(summary.reviewCount()).isEqualTo(3);
+    }
+
+    @Test
+    void getSeriesRatingSummaryReturnsEmptySummaryWhenNoReviewsExist() {
+        when(seriesRepository.existsById(77L)).thenReturn(true);
+        when(reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType.SERIES, 77L))
+                .thenReturn(List.of());
+
+        RatingSummaryPayload summary = reviewService.getSeriesRatingSummary(77L);
+
+        assertThat(summary.averageRating()).isNull();
+        assertThat(summary.reviewCount()).isZero();
     }
 
     private User buildUser(Long id, Role role) {

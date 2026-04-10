@@ -48,16 +48,16 @@ public class ReviewGraphQlController {
 
     @QueryMapping
     public List<ReviewPayload> reviews(@Argument ContentType contentType, @Argument Long contentId) {
-        throw new UnsupportedOperationException("Review queries will be implemented in phase 3.4");
+        return reviewService.getReviews(contentType, contentId);
     }
 
     @SchemaMapping(typeName = "Movie", field = "ratingSummary")
     public RatingSummaryPayload movieRatingSummary(MoviePayload source) {
-        throw new UnsupportedOperationException("Rating summaries will be implemented in phase 3.4");
+        return reviewService.getMovieRatingSummary(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "ratingSummary")
     public RatingSummaryPayload seriesRatingSummary(SeriesPayload source) {
-        throw new UnsupportedOperationException("Rating summaries will be implemented in phase 3.4");
+        return reviewService.getSeriesRatingSummary(source.id());
     }
 }

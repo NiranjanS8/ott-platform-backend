@@ -1,6 +1,7 @@
 package com.ott.streaming.service;
 
 import com.ott.streaming.dto.review.AddReviewInput;
+import com.ott.streaming.dto.review.RatingSummaryPayload;
 import com.ott.streaming.dto.review.ReviewPayload;
 import com.ott.streaming.dto.review.UpdateReviewInput;
 import com.ott.streaming.entity.ContentType;
@@ -12,6 +13,7 @@ import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
+import java.util.List;
 import java.util.Locale;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.stereotype.Service;
@@ -80,6 +82,24 @@ public class ReviewService {
         return true;
     }
 
+    public List<ReviewPayload> getReviews(ContentType contentType, Long contentId) {
+        validateContentExists(contentType, contentId);
+
+        return reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(contentType, contentId).stream()
+                .map(this::toPayload)
+                .toList();
+    }
+
+    public RatingSummaryPayload getMovieRatingSummary(Long movieId) {
+        validateContentExists(ContentType.MOVIE, movieId);
+        return buildRatingSummary(ContentType.MOVIE, movieId);
+    }
+
+    public RatingSummaryPayload getSeriesRatingSummary(Long seriesId) {
+        validateContentExists(ContentType.SERIES, seriesId);
+        return buildRatingSummary(ContentType.SERIES, seriesId);
+    }
+
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
             throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
@@ -121,6 +141,20 @@ public class ReviewService {
                 review.getCreatedAt(),
                 review.getUpdatedAt()
         );
+    }
+
+    private RatingSummaryPayload buildRatingSummary(ContentType contentType, Long contentId) {
+        List<Review> reviews = reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(contentType, contentId);
+        if (reviews.isEmpty()) {
+            return new RatingSummaryPayload(null, 0);
+        }
+
+        double average = reviews.stream()
+                .mapToInt(Review::getRating)
+                .average()
+                .orElse(0.0);
+
+        return new RatingSummaryPayload(average, reviews.size());
     }
 
     private String normalizeEmail(String email) {

@@ -9,6 +9,7 @@ import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ReviewService;
 import com.ott.streaming.entity.ContentType;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
@@ -65,5 +66,37 @@ class ReviewGraphQlControllerTest {
                 .path("addReview.contentType").entity(String.class).isEqualTo("MOVIE")
                 .path("addReview.rating").entity(Integer.class).isEqualTo(5)
                 .path("addReview.comment").entity(String.class).isEqualTo("Loved it");
+    }
+
+    @Test
+    void reviewsQueryReturnsReviewList() {
+        when(reviewService.getReviews(ContentType.MOVIE, 10L)).thenReturn(List.of(
+                new ReviewPayload(
+                        1L,
+                        9L,
+                        ContentType.MOVIE,
+                        10L,
+                        5,
+                        "Loved it",
+                        Instant.parse("2026-04-10T10:00:00Z"),
+                        Instant.parse("2026-04-10T10:00:00Z")
+                )
+        ));
+
+        graphQlTester.document("""
+                query {
+                  reviews(contentType: MOVIE, contentId: "10") {
+                    id
+                    userId
+                    rating
+                    comment
+                  }
+                }
+                """)
+                .execute()
+                .path("reviews[0].id").entity(String.class).isEqualTo("1")
+                .path("reviews[0].userId").entity(String.class).isEqualTo("9")
+                .path("reviews[0].rating").entity(Integer.class).isEqualTo(5)
+                .path("reviews[0].comment").entity(String.class).isEqualTo("Loved it");
     }
 }
