@@ -1,6 +1,7 @@
 package com.ott.streaming.graphql;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,6 +12,7 @@ import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.security.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ott.streaming.entity.Genre;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import com.ott.streaming.repository.GenreRepository;
+import com.ott.streaming.repository.PersonRepository;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -46,6 +50,12 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private GenreRepository genreRepository;
+
+    @MockitoBean
+    private PersonRepository personRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -96,6 +106,50 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/data/adminStatus").asText()).isEqualTo("ADMIN_ACCESS_GRANTED");
+    }
+
+    @Test
+    void createGenreIsBlockedForNormalUser() throws Exception {
+        User user = buildUser(4L, "Viewer", "viewer@example.com", Role.USER);
+        when(userRepository.findByEmail("viewer@example.com")).thenReturn(Optional.of(user));
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createGenre(input: { name: "Action" }) {
+                    id
+                    name
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/errors").isArray()).isTrue();
+        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+    }
+
+    @Test
+    void createGenreWorksForAdminUser() throws Exception {
+        User user = buildUser(5L, "Admin", "admin@example.com", Role.ADMIN);
+        Genre genre = new Genre();
+        genre.setId(11L);
+        genre.setName("Action");
+        ReflectionTestUtils.setField(genre, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(genre, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(genreRepository.existsByNameIgnoreCase("Action")).thenReturn(false);
+        when(genreRepository.save(any(Genre.class))).thenReturn(genre);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createGenre(input: { name: "Action" }) {
+                    id
+                    name
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/createGenre/id").asText()).isEqualTo("11");
+        assertThat(json.at("/data/createGenre/name").asText()).isEqualTo("Action");
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {

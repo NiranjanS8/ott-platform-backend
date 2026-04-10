@@ -18,6 +18,7 @@ import com.ott.streaming.dto.content.UpdateMovieInput;
 import com.ott.streaming.dto.content.UpdatePersonInput;
 import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
+import com.ott.streaming.service.ContentAdminService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -30,34 +31,40 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ContentGraphQlController {
 
+    private final ContentAdminService contentAdminService;
+
+    public ContentGraphQlController(ContentAdminService contentAdminService) {
+        this.contentAdminService = contentAdminService;
+    }
+
     @MutationMapping
     public GenrePayload createGenre(@Argument @Valid CreateGenreInput input) {
-        throw new UnsupportedOperationException("createGenre is not implemented yet");
+        return contentAdminService.createGenre(input);
     }
 
     @MutationMapping
     public GenrePayload updateGenre(@Argument Long id, @Argument @Valid UpdateGenreInput input) {
-        throw new UnsupportedOperationException("updateGenre is not implemented yet");
+        return contentAdminService.updateGenre(id, input);
     }
 
     @MutationMapping
     public Boolean deleteGenre(@Argument Long id) {
-        throw new UnsupportedOperationException("deleteGenre is not implemented yet");
+        return contentAdminService.deleteGenre(id);
     }
 
     @MutationMapping
     public PersonPayload createPerson(@Argument @Valid CreatePersonInput input) {
-        throw new UnsupportedOperationException("createPerson is not implemented yet");
+        return contentAdminService.createPerson(input);
     }
 
     @MutationMapping
     public PersonPayload updatePerson(@Argument Long id, @Argument @Valid UpdatePersonInput input) {
-        throw new UnsupportedOperationException("updatePerson is not implemented yet");
+        return contentAdminService.updatePerson(id, input);
     }
 
     @MutationMapping
     public Boolean deletePerson(@Argument Long id) {
-        throw new UnsupportedOperationException("deletePerson is not implemented yet");
+        return contentAdminService.deletePerson(id);
     }
 
     @MutationMapping

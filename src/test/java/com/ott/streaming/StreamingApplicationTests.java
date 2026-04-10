@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.ott.streaming.repository.GenreRepository;
+import com.ott.streaming.repository.PersonRepository;
 import com.ott.streaming.repository.UserRepository;
 
 @SpringBootTest(properties = {
@@ -16,6 +18,12 @@ class StreamingApplicationTests {
 
     @MockitoBean
     UserRepository userRepository;
+
+    @MockitoBean
+    GenreRepository genreRepository;
+
+    @MockitoBean
+    PersonRepository personRepository;
 
     @Test
     void contextLoads() {
