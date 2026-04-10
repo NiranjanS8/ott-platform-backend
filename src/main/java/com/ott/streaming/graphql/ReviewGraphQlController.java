@@ -7,12 +7,14 @@ import com.ott.streaming.dto.review.RatingSummaryPayload;
 import com.ott.streaming.dto.review.ReviewPayload;
 import com.ott.streaming.dto.review.UpdateReviewInput;
 import com.ott.streaming.entity.ContentType;
+import com.ott.streaming.service.ReviewService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
 
@@ -20,19 +22,28 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ReviewGraphQlController {
 
-    @MutationMapping
-    public ReviewPayload addReview(@Argument @Valid AddReviewInput input) {
-        throw new UnsupportedOperationException("Review mutations will be implemented in phase 3.3");
+    private final ReviewService reviewService;
+
+    public ReviewGraphQlController(ReviewService reviewService) {
+        this.reviewService = reviewService;
     }
 
     @MutationMapping
-    public ReviewPayload updateReview(@Argument Long id, @Argument @Valid UpdateReviewInput input) {
-        throw new UnsupportedOperationException("Review mutations will be implemented in phase 3.3");
+    public ReviewPayload addReview(@AuthenticationPrincipal(expression = "username") String email,
+                                   @Argument @Valid AddReviewInput input) {
+        return reviewService.addReview(email, input);
     }
 
     @MutationMapping
-    public Boolean deleteReview(@Argument Long id) {
-        throw new UnsupportedOperationException("Review mutations will be implemented in phase 3.3");
+    public ReviewPayload updateReview(@AuthenticationPrincipal(expression = "username") String email,
+                                      @Argument Long id,
+                                      @Argument @Valid UpdateReviewInput input) {
+        return reviewService.updateReview(email, id, input);
+    }
+
+    @MutationMapping
+    public Boolean deleteReview(@AuthenticationPrincipal(expression = "username") String email, @Argument Long id) {
+        return reviewService.deleteReview(email, id);
     }
 
     @QueryMapping

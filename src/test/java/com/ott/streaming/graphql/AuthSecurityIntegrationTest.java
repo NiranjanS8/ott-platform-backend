@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
+import com.ott.streaming.entity.Review;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
 import java.time.Instant;
@@ -32,6 +33,7 @@ import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
 import com.ott.streaming.repository.EpisodeRepository;
+import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 
@@ -76,6 +78,9 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private EpisodeRepository episodeRepository;
+
+    @MockitoBean
+    private ReviewRepository reviewRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -253,6 +258,74 @@ class AuthSecurityIntegrationTest {
         assertThat(json.at("/data/createSeason/id").asText()).isEqualTo("13");
         assertThat(json.at("/data/createSeason/title").asText()).isEqualTo("Season 1");
         assertThat(json.at("/data/createSeason/seasonNumber").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void addReviewWorksForAuthenticatedUser() throws Exception {
+        User user = buildUser(8L, "Reviewer", "reviewer@example.com", Role.USER);
+        Review review = new Review();
+        review.setId(20L);
+        review.setUserId(8L);
+        review.setContentType(com.ott.streaming.entity.ContentType.MOVIE);
+        review.setContentId(12L);
+        review.setRating(5);
+        review.setComment("Excellent");
+        ReflectionTestUtils.setField(review, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(review, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+
+        when(userRepository.findByEmail("reviewer@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.existsById(12L)).thenReturn(true);
+        when(reviewRepository.findByUserIdAndContentTypeAndContentId(
+                8L, com.ott.streaming.entity.ContentType.MOVIE, 12L
+        )).thenReturn(Optional.empty());
+        when(reviewRepository.save(any(Review.class))).thenReturn(review);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  addReview(input: {
+                    contentType: MOVIE
+                    contentId: "12"
+                    rating: 5
+                    comment: "Excellent"
+                  }) {
+                    id
+                    userId
+                    rating
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/addReview/id").asText()).isEqualTo("20");
+        assertThat(json.at("/data/addReview/userId").asText()).isEqualTo("8");
+        assertThat(json.at("/data/addReview/rating").asInt()).isEqualTo(5);
+    }
+
+    @Test
+    void updateReviewIsBlockedForDifferentNonAdminUser() throws Exception {
+        User user = buildUser(9L, "Member", "member@example.com", Role.USER);
+        Review review = new Review();
+        review.setId(21L);
+        review.setUserId(99L);
+        review.setContentType(com.ott.streaming.entity.ContentType.MOVIE);
+        review.setContentId(12L);
+        review.setRating(2);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(reviewRepository.findById(21L)).thenReturn(Optional.of(review));
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  updateReview(id: "21", input: {
+                    rating: 4
+                    comment: "Updated"
+                  }) {
+                    id
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/errors").isArray()).isTrue();
+        assertThat(json.at("/errors/0/message").asText()).contains("not allowed to modify this review");
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {
