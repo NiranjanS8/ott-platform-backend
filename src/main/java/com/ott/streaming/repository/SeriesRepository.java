@@ -1,0 +1,7 @@
+package com.ott.streaming.repository;
+
+import com.ott.streaming.entity.Series;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface SeriesRepository extends JpaRepository<Series, Long> {
+}
