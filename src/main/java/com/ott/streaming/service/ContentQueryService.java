@@ -6,6 +6,8 @@ import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.discovery.CatalogPagePayload;
+import com.ott.streaming.dto.discovery.CatalogQueryInput;
 import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
@@ -110,6 +112,10 @@ public class ContentQueryService {
                     return toEpisodePayload(episode);
                 })
                 .orElse(null);
+    }
+
+    public CatalogPagePayload discoverCatalog(CatalogQueryInput input) {
+        throw new UnsupportedOperationException("Catalog discovery will be implemented in phase 6.2");
     }
 
     public List<GenrePayload> getMovieGenres(MoviePayload source) {

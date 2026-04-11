@@ -5,6 +5,7 @@ extend type Query {
   series(id: ID!): Series
   season(id: ID!): Season
   episode(id: ID!): Episode
+  discoverCatalog(input: CatalogQueryInput!): CatalogPage!
 }
 
 extend type Mutation {
@@ -96,6 +97,67 @@ type Episode {
   releaseDate: String
   createdAt: String!
   updatedAt: String!
+}
+
+type CatalogItem {
+  id: ID!
+  contentType: ContentType!
+  title: String!
+  description: String
+  releaseDate: String
+  endDate: String
+  maturityRating: String
+  accessLevel: ContentAccessLevel!
+  averageRating: Float
+}
+
+type CatalogPage {
+  items: [CatalogItem!]!
+  pageInfo: PaginationInfo!
+}
+
+type PaginationInfo {
+  page: Int!
+  size: Int!
+  totalElements: Int!
+  totalPages: Int!
+  hasNext: Boolean!
+  hasPrevious: Boolean!
+}
+
+enum CatalogSortOption {
+  LATEST
+  OLDEST
+  TOP_RATED
+  TITLE_ASC
+  TITLE_DESC
+}
+
+input CatalogFilterInput {
+  genreId: ID
+  language: String
+  releaseYear: Int
+  minRating: Float
+  maxRating: Float
+  contentType: ContentType
+  accessLevel: ContentAccessLevel
+}
+
+input PaginationInput {
+  page: Int!
+  size: Int!
+}
+
+input CatalogQueryInput {
+  search: String
+  filter: CatalogFilterInput
+  sort: CatalogSortOption!
+  pagination: PaginationInput!
+}
+
+enum ContentType {
+  MOVIE
+  SERIES
 }
 
 input CreateGenreInput {

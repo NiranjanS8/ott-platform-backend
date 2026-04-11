@@ -18,6 +18,8 @@ import com.ott.streaming.dto.content.UpdateMovieInput;
 import com.ott.streaming.dto.content.UpdatePersonInput;
 import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
+import com.ott.streaming.dto.discovery.CatalogPagePayload;
+import com.ott.streaming.dto.discovery.CatalogQueryInput;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
 import jakarta.validation.Valid;
@@ -159,6 +161,11 @@ public class ContentGraphQlController {
     @QueryMapping
     public EpisodePayload episode(@Argument Long id) {
         return contentQueryService.getEpisodeById(id);
+    }
+
+    @QueryMapping
+    public CatalogPagePayload discoverCatalog(@Argument @Valid CatalogQueryInput input) {
+        return contentQueryService.discoverCatalog(input);
     }
 
     @SchemaMapping(typeName = "Movie", field = "genres")
