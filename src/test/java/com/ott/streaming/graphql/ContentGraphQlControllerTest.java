@@ -303,6 +303,84 @@ class ContentGraphQlControllerTest {
     }
 
     @Test
+    void discoverCatalogValidationRejectsRatingRangeWhenMinimumExceedsMaximum() {
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    filter: {
+                      minRating: 5.0
+                      maxRating: 4.0
+                    }
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    pageInfo {
+                      totalElements
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage())
+                            .contains("Minimum rating must be less than or equal to maximum rating");
+                });
+    }
+
+    @Test
+    void discoverCatalogValidationRejectsSearchTextThatIsTooLong() {
+        String searchText = "a".repeat(101);
+
+        graphQlTester.document("""
+                query DiscoverCatalog($search: String!) {
+                  discoverCatalog(input: {
+                    search: $search
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    pageInfo {
+                      totalElements
+                    }
+                  }
+                }
+                """)
+                .variable("search", searchText)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).contains("Search text must be at most 100 characters");
+                });
+    }
+
+    @Test
+    void discoverCatalogValidationRejectsReleaseYearTooFarInFuture() {
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    filter: {
+                      releaseYear: 2100
+                    }
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    pageInfo {
+                      totalElements
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).contains("Release year must not be in the far future");
+                });
+    }
+
+    @Test
     void discoverCatalogAcceptsCoreFilters() {
         when(contentQueryService.discoverCatalog(any())).thenReturn(
                 new CatalogPagePayload(

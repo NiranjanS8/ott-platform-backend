@@ -191,6 +191,31 @@ class ContentQueryServiceTest {
     }
 
     @Test
+    void discoverCatalogReturnsEmptyItemsWhenPageIsBeyondAvailableResults() {
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(
+                movie(1L, "Alpha", ContentAccessLevel.FREE),
+                movie(2L, "Beta", ContentAccessLevel.FREE)
+        ));
+        when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                null,
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(3, 2)
+        ));
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.pageInfo().page()).isEqualTo(3);
+        assertThat(page.pageInfo().totalElements()).isEqualTo(2);
+        assertThat(page.pageInfo().totalPages()).isEqualTo(1);
+        assertThat(page.pageInfo().hasNext()).isFalse();
+        assertThat(page.pageInfo().hasPrevious()).isTrue();
+    }
+
+    @Test
     void discoverCatalogFiltersByGenreReleaseYearTypeAndAccessLevel() {
         Movie matchingMovie = movie(1L, "Arrival", ContentAccessLevel.PREMIUM);
         matchingMovie.setGenres(java.util.Set.of(genre(10L, "Sci-Fi")));
