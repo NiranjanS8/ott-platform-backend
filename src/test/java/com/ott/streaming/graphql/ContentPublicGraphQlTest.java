@@ -9,6 +9,7 @@ import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.dto.review.RatingSummaryPayload;
+import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
@@ -42,6 +43,7 @@ class ContentPublicGraphQlTest {
     void moviesQueryReturnsList() {
         when(contentQueryService.getMovies()).thenReturn(List.of(
                 new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                        ContentAccessLevel.FREE,
                         now(), now())
         ));
 
@@ -63,6 +65,7 @@ class ContentPublicGraphQlTest {
     @Test
     void nestedMovieFieldsResolveRelationships() {
         MoviePayload movie = new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                ContentAccessLevel.FREE,
                 now(), now());
         when(contentQueryService.getMovieById(1L)).thenReturn(movie);
         when(contentQueryService.getMovieGenres(movie)).thenReturn(List.of(
@@ -102,6 +105,7 @@ class ContentPublicGraphQlTest {
     @Test
     void nestedSeriesAndSeasonFieldsResolveRelationships() {
         SeriesPayload series = new SeriesPayload(2L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA",
+                ContentAccessLevel.FREE,
                 now(), now());
         SeasonPayload season = new SeasonPayload(3L, 2L, "Season 1", 1, now(), now());
         EpisodePayload episode = new EpisodePayload(4L, 3L, "Episode 1", 1, "Pilot", 45, "2017-12-01", now(), now());

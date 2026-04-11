@@ -10,6 +10,7 @@ import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.dto.content.EpisodePayload;
+import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
@@ -104,6 +105,7 @@ class ContentGraphQlControllerTest {
     void createMovieReturnsPayloadForAdmin() {
         when(contentAdminService.createMovie(any())).thenReturn(
                 new MoviePayload(3L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                        ContentAccessLevel.FREE,
                         Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
         );
 
@@ -136,6 +138,7 @@ class ContentGraphQlControllerTest {
     void createSeriesReturnsPayloadForAdmin() {
         when(contentAdminService.createSeries(any())).thenReturn(
                 new SeriesPayload(4L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA",
+                        ContentAccessLevel.FREE,
                         Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
         );
 

@@ -1,5 +1,6 @@
 package com.ott.streaming.dto.content;
 
+import com.ott.streaming.entity.ContentAccessLevel;
 import java.time.Instant;
 
 public record SeriesPayload(
@@ -9,6 +10,7 @@ public record SeriesPayload(
         String releaseDate,
         String endDate,
         String maturityRating,
+        ContentAccessLevel accessLevel,
         Instant createdAt,
         Instant updatedAt
 ) {

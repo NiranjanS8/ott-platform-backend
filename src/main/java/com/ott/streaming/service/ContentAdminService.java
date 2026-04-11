@@ -18,6 +18,7 @@ import com.ott.streaming.dto.content.UpdateMovieInput;
 import com.ott.streaming.dto.content.UpdatePersonInput;
 import com.ott.streaming.dto.content.UpdateSeasonInput;
 import com.ott.streaming.dto.content.UpdateSeriesInput;
+import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
@@ -277,6 +278,7 @@ public class ContentAdminService {
                 formatDate(movie.getReleaseDate()),
                 movie.getDurationMinutes(),
                 movie.getMaturityRating(),
+                movie.getAccessLevel(),
                 movie.getCreatedAt(),
                 movie.getUpdatedAt()
         );
@@ -290,6 +292,7 @@ public class ContentAdminService {
                 formatDate(series.getReleaseDate()),
                 formatDate(series.getEndDate()),
                 series.getMaturityRating(),
+                series.getAccessLevel(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()
         );
@@ -326,6 +329,9 @@ public class ContentAdminService {
         movie.setReleaseDate(parseDate(input.releaseDate(), "movie release date"));
         movie.setDurationMinutes(input.durationMinutes());
         movie.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        if (movie.getAccessLevel() == null) {
+            movie.setAccessLevel(ContentAccessLevel.FREE);
+        }
         movie.setGenres(resolveGenres(input.genreIds()));
         movie.setCast(resolvePersons(input.castIds(), "cast"));
         movie.setDirectors(resolvePersons(input.directorIds(), "director"));
@@ -337,6 +343,9 @@ public class ContentAdminService {
         movie.setReleaseDate(parseDate(input.releaseDate(), "movie release date"));
         movie.setDurationMinutes(input.durationMinutes());
         movie.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        if (movie.getAccessLevel() == null) {
+            movie.setAccessLevel(ContentAccessLevel.FREE);
+        }
         movie.setGenres(resolveGenres(input.genreIds()));
         movie.setCast(resolvePersons(input.castIds(), "cast"));
         movie.setDirectors(resolvePersons(input.directorIds(), "director"));
@@ -348,6 +357,9 @@ public class ContentAdminService {
         series.setReleaseDate(parseDate(input.releaseDate(), "series release date"));
         series.setEndDate(parseDate(input.endDate(), "series end date"));
         series.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        if (series.getAccessLevel() == null) {
+            series.setAccessLevel(ContentAccessLevel.FREE);
+        }
         series.setGenres(resolveGenres(input.genreIds()));
         series.setCast(resolvePersons(input.castIds(), "cast"));
         series.setDirectors(resolvePersons(input.directorIds(), "director"));
@@ -359,6 +371,9 @@ public class ContentAdminService {
         series.setReleaseDate(parseDate(input.releaseDate(), "series release date"));
         series.setEndDate(parseDate(input.endDate(), "series end date"));
         series.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        if (series.getAccessLevel() == null) {
+            series.setAccessLevel(ContentAccessLevel.FREE);
+        }
         series.setGenres(resolveGenres(input.genreIds()));
         series.setCast(resolvePersons(input.castIds(), "cast"));
         series.setDirectors(resolvePersons(input.directorIds(), "director"));

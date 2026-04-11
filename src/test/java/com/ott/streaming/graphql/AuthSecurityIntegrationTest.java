@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ott.streaming.entity.Role;
 import com.ott.streaming.entity.User;
+import com.ott.streaming.entity.SubscriptionPlan;
 import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.security.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,6 +39,7 @@ import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
+import com.ott.streaming.repository.SubscriptionPlanRepository;
 import com.ott.streaming.repository.WatchProgressRepository;
 import com.ott.streaming.repository.WatchlistItemRepository;
 
@@ -91,6 +93,9 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private WatchProgressRepository watchProgressRepository;
+
+    @MockitoBean
+    private SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -583,6 +588,89 @@ class AuthSecurityIntegrationTest {
         assertThat(json.at("/data/watchHistory/0/contentType").asText()).isEqualTo("MOVIE");
         assertThat(json.at("/data/watchHistory/1/id").asText()).isEqualTo("53");
         assertThat(json.at("/data/watchHistory/1/contentType").asText()).isEqualTo("SERIES");
+    }
+
+    @Test
+    void createSubscriptionPlanIsBlockedForNormalUser() throws Exception {
+        User user = buildUser(16L, "Member", "member@example.com", Role.USER);
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createSubscriptionPlan(input: {
+                    name: "Premium Monthly"
+                    description: "Monthly access"
+                    price: 9.99
+                    durationDays: 30
+                    active: true
+                  }) {
+                    id
+                    name
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/errors").isArray()).isTrue();
+        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+    }
+
+    @Test
+    void createSubscriptionPlanWorksForAdminUser() throws Exception {
+        User user = buildUser(17L, "Admin", "admin@example.com", Role.ADMIN);
+        SubscriptionPlan plan = new SubscriptionPlan();
+        plan.setId(60L);
+        plan.setName("Premium Monthly");
+        plan.setDescription("Monthly access");
+        plan.setPrice(new java.math.BigDecimal("9.99"));
+        plan.setDurationDays(30);
+        plan.setActive(true);
+        ReflectionTestUtils.setField(plan, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(plan, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(user));
+        when(subscriptionPlanRepository.existsByNameIgnoreCase("Premium Monthly")).thenReturn(false);
+        when(subscriptionPlanRepository.save(any(SubscriptionPlan.class))).thenReturn(plan);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  createSubscriptionPlan(input: {
+                    name: "Premium Monthly"
+                    description: "Monthly access"
+                    price: 9.99
+                    durationDays: 30
+                    active: true
+                  }) {
+                    id
+                    name
+                    price
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/createSubscriptionPlan/id").asText()).isEqualTo("60");
+        assertThat(json.at("/data/createSubscriptionPlan/name").asText()).isEqualTo("Premium Monthly");
+        assertThat(json.at("/data/createSubscriptionPlan/price").decimalValue())
+                .isEqualByComparingTo("9.99");
+    }
+
+    @Test
+    void updateMovieAccessLevelIsBlockedForNormalUser() throws Exception {
+        User user = buildUser(18L, "Member", "member@example.com", Role.USER);
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  updateMovieAccessLevel(id: "12", input: {
+                    accessLevel: PREMIUM
+                  }) {
+                    id
+                    accessLevel
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/errors").isArray()).isTrue();
+        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {

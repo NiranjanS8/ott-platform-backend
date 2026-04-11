@@ -8,6 +8,7 @@ import com.ott.streaming.dto.subscription.SubscriptionPlanPayload;
 import com.ott.streaming.dto.subscription.UpdateContentAccessInput;
 import com.ott.streaming.dto.subscription.UpdateSubscriptionPlanInput;
 import com.ott.streaming.dto.subscription.UserSubscriptionPayload;
+import com.ott.streaming.service.SubscriptionAdminService;
 import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -19,25 +20,31 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class SubscriptionGraphQlController {
 
+    private final SubscriptionAdminService subscriptionAdminService;
+
+    public SubscriptionGraphQlController(SubscriptionAdminService subscriptionAdminService) {
+        this.subscriptionAdminService = subscriptionAdminService;
+    }
+
     @MutationMapping
     public SubscriptionPlanPayload createSubscriptionPlan(@Argument @Valid CreateSubscriptionPlanInput input) {
-        throw new UnsupportedOperationException("Subscription plan mutations will be implemented in phase 5.3");
+        return subscriptionAdminService.createSubscriptionPlan(input);
     }
 
     @MutationMapping
     public SubscriptionPlanPayload updateSubscriptionPlan(@Argument Long id,
                                                           @Argument @Valid UpdateSubscriptionPlanInput input) {
-        throw new UnsupportedOperationException("Subscription plan mutations will be implemented in phase 5.3");
+        return subscriptionAdminService.updateSubscriptionPlan(id, input);
     }
 
     @MutationMapping
     public MoviePayload updateMovieAccessLevel(@Argument Long id, @Argument @Valid UpdateContentAccessInput input) {
-        throw new UnsupportedOperationException("Content access mutations will be implemented in phase 5.3");
+        return subscriptionAdminService.updateMovieAccessLevel(id, input);
     }
 
     @MutationMapping
     public SeriesPayload updateSeriesAccessLevel(@Argument Long id, @Argument @Valid UpdateContentAccessInput input) {
-        throw new UnsupportedOperationException("Content access mutations will be implemented in phase 5.3");
+        return subscriptionAdminService.updateSeriesAccessLevel(id, input);
     }
 
     @MutationMapping

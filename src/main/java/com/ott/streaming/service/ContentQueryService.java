@@ -146,6 +146,7 @@ public class ContentQueryService {
                 formatDate(movie.getReleaseDate()),
                 movie.getDurationMinutes(),
                 movie.getMaturityRating(),
+                movie.getAccessLevel(),
                 movie.getCreatedAt(),
                 movie.getUpdatedAt()
         );
@@ -159,6 +160,7 @@ public class ContentQueryService {
                 formatDate(series.getReleaseDate()),
                 formatDate(series.getEndDate()),
                 series.getMaturityRating(),
+                series.getAccessLevel(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()
         );
