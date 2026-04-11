@@ -6,6 +6,7 @@ import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.discovery.CatalogFilterInput;
 import com.ott.streaming.dto.discovery.CatalogItemPayload;
 import com.ott.streaming.dto.discovery.CatalogPagePayload;
 import com.ott.streaming.dto.discovery.CatalogQueryInput;
@@ -120,7 +121,7 @@ public class ContentQueryService {
     }
 
     public CatalogPagePayload discoverCatalog(CatalogQueryInput input) {
-        List<CatalogItemPayload> items = buildCatalogItems(input.search()).stream()
+        List<CatalogItemPayload> items = buildCatalogItems(input.search(), input.filter()).stream()
                 .sorted(catalogComparator(input.sort()))
                 .toList();
 
@@ -218,7 +219,7 @@ public class ContentQueryService {
         }
     }
 
-    private List<CatalogItemPayload> buildCatalogItems(String search) {
+    private List<CatalogItemPayload> buildCatalogItems(String search, CatalogFilterInput filter) {
         String normalizedSearch = normalizeSearch(search);
         List<Movie> movies = normalizedSearch == null
                 ? movieRepository.findAll()
@@ -228,10 +229,54 @@ public class ContentQueryService {
                 : seriesRepository.findByTitleContainingIgnoreCase(normalizedSearch);
 
         return java.util.stream.Stream.concat(
-                        movies.stream().map(this::toCatalogMovieItem),
-                        seriesList.stream().map(this::toCatalogSeriesItem)
+                        movies.stream()
+                                .filter(movie -> matchesMovieFilter(movie, filter))
+                                .map(this::toCatalogMovieItem),
+                        seriesList.stream()
+                                .filter(series -> matchesSeriesFilter(series, filter))
+                                .map(this::toCatalogSeriesItem)
                 )
                 .toList();
+    }
+
+    private boolean matchesMovieFilter(Movie movie, CatalogFilterInput filter) {
+        if (filter == null) {
+            return true;
+        }
+
+        if (filter.contentType() != null && filter.contentType() != ContentType.MOVIE) {
+            return false;
+        }
+        if (filter.accessLevel() != null && movie.getAccessLevel() != filter.accessLevel()) {
+            return false;
+        }
+        if (filter.releaseYear() != null
+                && (movie.getReleaseDate() == null || movie.getReleaseDate().getYear() != filter.releaseYear())) {
+            return false;
+        }
+        return filter.genreId() == null || movie.getGenres().stream()
+                .map(Genre::getId)
+                .anyMatch(filter.genreId()::equals);
+    }
+
+    private boolean matchesSeriesFilter(Series series, CatalogFilterInput filter) {
+        if (filter == null) {
+            return true;
+        }
+
+        if (filter.contentType() != null && filter.contentType() != ContentType.SERIES) {
+            return false;
+        }
+        if (filter.accessLevel() != null && series.getAccessLevel() != filter.accessLevel()) {
+            return false;
+        }
+        if (filter.releaseYear() != null
+                && (series.getReleaseDate() == null || series.getReleaseDate().getYear() != filter.releaseYear())) {
+            return false;
+        }
+        return filter.genreId() == null || series.getGenres().stream()
+                .map(Genre::getId)
+                .anyMatch(filter.genreId()::equals);
     }
 
     private CatalogItemPayload toCatalogMovieItem(Movie movie) {

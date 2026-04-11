@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.content.MoviePayload;
+import com.ott.streaming.dto.discovery.CatalogFilterInput;
 import com.ott.streaming.dto.discovery.CatalogPagePayload;
 import com.ott.streaming.dto.discovery.CatalogQueryInput;
 import com.ott.streaming.dto.discovery.CatalogSortOption;
@@ -12,6 +13,7 @@ import com.ott.streaming.dto.discovery.PaginationInput;
 import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.entity.Episode;
+import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
@@ -174,6 +176,59 @@ class ContentQueryServiceTest {
         assertThat(page.pageInfo().hasPrevious()).isTrue();
     }
 
+    @Test
+    void discoverCatalogFiltersByGenreReleaseYearTypeAndAccessLevel() {
+        Movie matchingMovie = movie(1L, "Arrival", ContentAccessLevel.PREMIUM);
+        matchingMovie.setGenres(java.util.Set.of(genre(10L, "Sci-Fi")));
+        matchingMovie.setReleaseDate(LocalDate.parse("2021-02-10"));
+
+        Movie wrongGenreMovie = movie(2L, "Drama Film", ContentAccessLevel.PREMIUM);
+        wrongGenreMovie.setGenres(java.util.Set.of(genre(11L, "Drama")));
+        wrongGenreMovie.setReleaseDate(LocalDate.parse("2021-03-10"));
+
+        Series wrongTypeSeries = series(3L, "Arrival Series", ContentAccessLevel.PREMIUM);
+        wrongTypeSeries.setGenres(java.util.Set.of(genre(10L, "Sci-Fi")));
+        wrongTypeSeries.setReleaseDate(LocalDate.parse("2021-04-10"));
+
+        when(movieRepository.findAll()).thenReturn(List.of(matchingMovie, wrongGenreMovie));
+        when(seriesRepository.findAll()).thenReturn(List.of(wrongTypeSeries));
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                new CatalogFilterInput(10L, null, 2021, null, null, ContentType.MOVIE, ContentAccessLevel.PREMIUM),
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(0, 10)
+        ));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().getFirst().id()).isEqualTo(1L);
+        assertThat(page.items().getFirst().contentType()).isEqualTo(ContentType.MOVIE);
+        assertThat(page.items().getFirst().accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
+    }
+
+    @Test
+    void discoverCatalogFiltersSeriesByReleaseYearAndAccessLevel() {
+        Series matchingSeries = series(4L, "Dark", ContentAccessLevel.FREE);
+        matchingSeries.setReleaseDate(LocalDate.parse("2017-12-01"));
+
+        Series wrongYearSeries = series(5L, "1899", ContentAccessLevel.FREE);
+        wrongYearSeries.setReleaseDate(LocalDate.parse("2022-11-17"));
+
+        when(movieRepository.findAll()).thenReturn(List.of());
+        when(seriesRepository.findAll()).thenReturn(List.of(matchingSeries, wrongYearSeries));
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                new CatalogFilterInput(null, null, 2017, null, null, ContentType.SERIES, ContentAccessLevel.FREE),
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(0, 10)
+        ));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().getFirst().id()).isEqualTo(4L);
+        assertThat(page.items().getFirst().contentType()).isEqualTo(ContentType.SERIES);
+    }
+
     private Movie movie(Long id, String title, ContentAccessLevel accessLevel) {
         Movie movie = new Movie();
         movie.setId(id);
@@ -216,6 +271,15 @@ class ContentQueryServiceTest {
         ReflectionTestUtils.setField(episode, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
         ReflectionTestUtils.setField(episode, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
         return episode;
+    }
+
+    private Genre genre(Long id, String name) {
+        Genre genre = new Genre();
+        genre.setId(id);
+        genre.setName(name);
+        ReflectionTestUtils.setField(genre, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(genre, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return genre;
     }
 
 }

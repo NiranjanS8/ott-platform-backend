@@ -298,4 +298,55 @@ class ContentGraphQlControllerTest {
                     assertThat(errors.getFirst().getMessage()).contains("Page size must not exceed 100");
                 });
     }
+
+    @Test
+    void discoverCatalogAcceptsCoreFilters() {
+        when(contentQueryService.discoverCatalog(any())).thenReturn(
+                new CatalogPagePayload(
+                        java.util.List.of(
+                                new CatalogItemPayload(
+                                        8L,
+                                        ContentType.MOVIE,
+                                        "Arrival",
+                                        "Sci-fi drama",
+                                        "2021-02-10",
+                                        null,
+                                        "PG-13",
+                                        ContentAccessLevel.PREMIUM,
+                                        null
+                                )
+                        ),
+                        new PaginationInfoPayload(0, 10, 1, 1, false, false)
+                )
+        );
+
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    filter: {
+                      genreId: "10"
+                      releaseYear: 2021
+                      contentType: MOVIE
+                      accessLevel: PREMIUM
+                    }
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    items {
+                      id
+                      contentType
+                      accessLevel
+                    }
+                    pageInfo {
+                      totalElements
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .path("discoverCatalog.items[0].id").entity(String.class).isEqualTo("8")
+                .path("discoverCatalog.items[0].contentType").entity(String.class).isEqualTo("MOVIE")
+                .path("discoverCatalog.items[0].accessLevel").entity(String.class).isEqualTo("PREMIUM")
+                .path("discoverCatalog.pageInfo.totalElements").entity(Integer.class).isEqualTo(1);
+    }
 }
