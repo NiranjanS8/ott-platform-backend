@@ -6,9 +6,13 @@ import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.dto.discovery.CatalogItemPayload;
 import com.ott.streaming.dto.discovery.CatalogPagePayload;
 import com.ott.streaming.dto.discovery.CatalogQueryInput;
+import com.ott.streaming.dto.discovery.CatalogSortOption;
+import com.ott.streaming.dto.discovery.PaginationInfoPayload;
 import com.ott.streaming.entity.ContentAccessLevel;
+import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
@@ -21,6 +25,7 @@ import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
@@ -115,7 +120,28 @@ public class ContentQueryService {
     }
 
     public CatalogPagePayload discoverCatalog(CatalogQueryInput input) {
-        throw new UnsupportedOperationException("Catalog discovery will be implemented in phase 6.2");
+        List<CatalogItemPayload> items = buildCatalogItems(input.search()).stream()
+                .sorted(catalogComparator(input.sort()))
+                .toList();
+
+        int totalElements = items.size();
+        int page = input.pagination().page();
+        int size = input.pagination().size();
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
+        int fromIndex = Math.min(page * size, totalElements);
+        int toIndex = Math.min(fromIndex + size, totalElements);
+
+        return new CatalogPagePayload(
+                items.subList(fromIndex, toIndex),
+                new PaginationInfoPayload(
+                        page,
+                        size,
+                        totalElements,
+                        totalPages,
+                        page + 1 < totalPages,
+                        page > 0 && totalPages > 0
+                )
+        );
     }
 
     public List<GenrePayload> getMovieGenres(MoviePayload source) {
@@ -190,6 +216,78 @@ public class ContentQueryService {
         if (!userSubscriptionService.hasPremiumAccess(email)) {
             throw new ApiException("Premium subscription required to access this content", ErrorType.FORBIDDEN);
         }
+    }
+
+    private List<CatalogItemPayload> buildCatalogItems(String search) {
+        String normalizedSearch = normalizeSearch(search);
+        List<Movie> movies = normalizedSearch == null
+                ? movieRepository.findAll()
+                : movieRepository.findByTitleContainingIgnoreCase(normalizedSearch);
+        List<Series> seriesList = normalizedSearch == null
+                ? seriesRepository.findAll()
+                : seriesRepository.findByTitleContainingIgnoreCase(normalizedSearch);
+
+        return java.util.stream.Stream.concat(
+                        movies.stream().map(this::toCatalogMovieItem),
+                        seriesList.stream().map(this::toCatalogSeriesItem)
+                )
+                .toList();
+    }
+
+    private CatalogItemPayload toCatalogMovieItem(Movie movie) {
+        return new CatalogItemPayload(
+                movie.getId(),
+                ContentType.MOVIE,
+                movie.getTitle(),
+                movie.getDescription(),
+                formatDate(movie.getReleaseDate()),
+                null,
+                movie.getMaturityRating(),
+                movie.getAccessLevel(),
+                null
+        );
+    }
+
+    private CatalogItemPayload toCatalogSeriesItem(Series series) {
+        return new CatalogItemPayload(
+                series.getId(),
+                ContentType.SERIES,
+                series.getTitle(),
+                series.getDescription(),
+                formatDate(series.getReleaseDate()),
+                formatDate(series.getEndDate()),
+                series.getMaturityRating(),
+                series.getAccessLevel(),
+                null
+        );
+    }
+
+    private Comparator<CatalogItemPayload> catalogComparator(CatalogSortOption sort) {
+        Comparator<CatalogItemPayload> byTitle = Comparator.comparing(
+                item -> item.title() == null ? "" : item.title().toLowerCase()
+        );
+        Comparator<CatalogItemPayload> byReleaseDate = Comparator.comparing(
+                item -> item.releaseDate() == null ? "" : item.releaseDate()
+        );
+
+        return switch (sort) {
+            case TITLE_ASC -> byTitle;
+            case TITLE_DESC -> byTitle.reversed();
+            case OLDEST -> byReleaseDate.thenComparing(byTitle);
+            case TOP_RATED -> Comparator
+                    .comparing((CatalogItemPayload item) -> item.averageRating() == null ? -1.0 : item.averageRating())
+                    .reversed()
+                    .thenComparing(byTitle);
+            case LATEST -> byReleaseDate.reversed().thenComparing(byTitle);
+        };
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null) {
+            return null;
+        }
+        String normalized = search.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private String currentAuthenticatedEmail() {

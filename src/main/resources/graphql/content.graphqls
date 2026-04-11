@@ -155,11 +155,6 @@ input CatalogQueryInput {
   pagination: PaginationInput!
 }
 
-enum ContentType {
-  MOVIE
-  SERIES
-}
-
 input CreateGenreInput {
   name: String!
 }

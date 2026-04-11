@@ -5,8 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.content.MoviePayload;
-import com.ott.streaming.dto.content.SeasonPayload;
+import com.ott.streaming.dto.discovery.CatalogPagePayload;
+import com.ott.streaming.dto.discovery.CatalogQueryInput;
+import com.ott.streaming.dto.discovery.CatalogSortOption;
+import com.ott.streaming.dto.discovery.PaginationInput;
 import com.ott.streaming.entity.ContentAccessLevel;
+import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Season;
@@ -117,6 +121,57 @@ class ContentQueryServiceTest {
         assertThatThrownBy(() -> contentQueryService.getEpisodeById(null, 4L))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Premium subscription required to access this content");
+    }
+
+    @Test
+    void discoverCatalogSearchesTitleAcrossMoviesAndSeries() {
+        when(movieRepository.findByTitleContainingIgnoreCase("dark")).thenReturn(List.of(
+                movie(1L, "Dark City", ContentAccessLevel.FREE)
+        ));
+        when(seriesRepository.findByTitleContainingIgnoreCase("dark")).thenReturn(List.of(
+                series(2L, "Dark", ContentAccessLevel.PREMIUM)
+        ));
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                " dark ",
+                null,
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(0, 10)
+        ));
+
+        assertThat(page.items()).hasSize(2);
+        assertThat(page.items().get(0).title()).isEqualTo("Dark");
+        assertThat(page.items().get(0).contentType()).isEqualTo(ContentType.SERIES);
+        assertThat(page.items().get(1).title()).isEqualTo("Dark City");
+        assertThat(page.pageInfo().totalElements()).isEqualTo(2);
+        assertThat(page.pageInfo().totalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void discoverCatalogPaginatesCombinedResults() {
+        when(movieRepository.findAll()).thenReturn(List.of(
+                movie(1L, "Alpha", ContentAccessLevel.FREE),
+                movie(2L, "Beta", ContentAccessLevel.FREE)
+        ));
+        when(seriesRepository.findAll()).thenReturn(List.of(
+                series(3L, "Gamma", ContentAccessLevel.FREE)
+        ));
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                null,
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(1, 2)
+        ));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().getFirst().title()).isEqualTo("Gamma");
+        assertThat(page.pageInfo().page()).isEqualTo(1);
+        assertThat(page.pageInfo().size()).isEqualTo(2);
+        assertThat(page.pageInfo().totalElements()).isEqualTo(3);
+        assertThat(page.pageInfo().totalPages()).isEqualTo(2);
+        assertThat(page.pageInfo().hasNext()).isFalse();
+        assertThat(page.pageInfo().hasPrevious()).isTrue();
     }
 
     private Movie movie(Long id, String title, ContentAccessLevel accessLevel) {

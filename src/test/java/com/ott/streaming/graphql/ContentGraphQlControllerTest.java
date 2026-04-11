@@ -10,7 +10,11 @@ import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.dto.content.EpisodePayload;
+import com.ott.streaming.dto.discovery.CatalogItemPayload;
+import com.ott.streaming.dto.discovery.CatalogPagePayload;
+import com.ott.streaming.dto.discovery.PaginationInfoPayload;
 import com.ott.streaming.entity.ContentAccessLevel;
+import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
@@ -221,5 +225,77 @@ class ContentGraphQlControllerTest {
                 .path("createEpisode.id").entity(String.class).isEqualTo("6")
                 .path("createEpisode.title").entity(String.class).isEqualTo("Episode 1")
                 .path("createEpisode.episodeNumber").entity(Integer.class).isEqualTo(1);
+    }
+
+    @Test
+    void discoverCatalogReturnsPaginatedPayload() {
+        when(contentQueryService.discoverCatalog(any())).thenReturn(
+                new CatalogPagePayload(
+                        java.util.List.of(
+                                new CatalogItemPayload(
+                                        7L,
+                                        ContentType.MOVIE,
+                                        "The Matrix",
+                                        "Sci-fi action film",
+                                        "1999-03-31",
+                                        null,
+                                        "R",
+                                        ContentAccessLevel.FREE,
+                                        null
+                                )
+                        ),
+                        new PaginationInfoPayload(0, 10, 1, 1, false, false)
+                )
+        );
+
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    search: "matrix"
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    items {
+                      id
+                      contentType
+                      title
+                      accessLevel
+                    }
+                    pageInfo {
+                      page
+                      size
+                      totalElements
+                      totalPages
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .path("discoverCatalog.items[0].id").entity(String.class).isEqualTo("7")
+                .path("discoverCatalog.items[0].contentType").entity(String.class).isEqualTo("MOVIE")
+                .path("discoverCatalog.items[0].title").entity(String.class).isEqualTo("The Matrix")
+                .path("discoverCatalog.pageInfo.totalElements").entity(Integer.class).isEqualTo(1);
+    }
+
+    @Test
+    void discoverCatalogValidationRejectsPageSizeAboveLimit() {
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    sort: TITLE_ASC
+                    pagination: { page: 0, size: 101 }
+                  }) {
+                    pageInfo {
+                      totalElements
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).contains("Page size must not exceed 100");
+                });
     }
 }
