@@ -2,6 +2,9 @@ package com.ott.streaming.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.content.MoviePayload;
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -132,10 +136,10 @@ class ContentQueryServiceTest {
 
     @Test
     void discoverCatalogSearchesTitleAcrossMoviesAndSeries() {
-        when(movieRepository.findByTitleContainingIgnoreCase("dark")).thenReturn(List.of(
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 movie(1L, "Dark City", ContentAccessLevel.FREE)
         ));
-        when(seriesRepository.findByTitleContainingIgnoreCase("dark")).thenReturn(List.of(
+        when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 series(2L, "Dark", ContentAccessLevel.PREMIUM)
         ));
         when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
@@ -158,11 +162,11 @@ class ContentQueryServiceTest {
 
     @Test
     void discoverCatalogPaginatesCombinedResults() {
-        when(movieRepository.findAll()).thenReturn(List.of(
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 movie(1L, "Alpha", ContentAccessLevel.FREE),
                 movie(2L, "Beta", ContentAccessLevel.FREE)
         ));
-        when(seriesRepository.findAll()).thenReturn(List.of(
+        when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 series(3L, "Gamma", ContentAccessLevel.FREE)
         ));
         when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
@@ -203,11 +207,8 @@ class ContentQueryServiceTest {
         wrongTypeSeries.setReleaseDate(LocalDate.parse("2021-04-10"));
         wrongTypeSeries.setLanguage("English");
 
-        when(movieRepository.findAll()).thenReturn(List.of(matchingMovie, wrongGenreMovie));
-        when(seriesRepository.findAll()).thenReturn(List.of(wrongTypeSeries));
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(matchingMovie));
         when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -232,10 +233,8 @@ class ContentQueryServiceTest {
         wrongYearSeries.setReleaseDate(LocalDate.parse("2022-11-17"));
         wrongYearSeries.setLanguage("German");
 
-        when(movieRepository.findAll()).thenReturn(List.of());
-        when(seriesRepository.findAll()).thenReturn(List.of(matchingSeries, wrongYearSeries));
+        when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(matchingSeries));
         when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 4L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 5L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -260,14 +259,12 @@ class ContentQueryServiceTest {
         Series wrongLanguageSeries = series(3L, "Dark", ContentAccessLevel.FREE);
         wrongLanguageSeries.setLanguage("German");
 
-        when(movieRepository.findAll()).thenReturn(List.of(highRatedMovie, lowRatedMovie));
-        when(seriesRepository.findAll()).thenReturn(List.of(wrongLanguageSeries));
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(highRatedMovie, lowRatedMovie));
+        when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of());
         when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L))
                 .thenReturn(List.of(review(5), review(4)));
         when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L))
                 .thenReturn(List.of(review(2), review(3)));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L))
-                .thenReturn(List.of(review(5)));
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -280,6 +277,23 @@ class ContentQueryServiceTest {
         assertThat(page.items().getFirst().id()).isEqualTo(1L);
         assertThat(page.items().getFirst().language()).isEqualTo("English");
         assertThat(page.items().getFirst().averageRating()).isEqualTo(4.5);
+    }
+
+    @Test
+    void discoverCatalogSkipsSeriesRepositoryWhenMovieTypeRequested() {
+        Movie movie = movie(11L, "Arrival", ContentAccessLevel.FREE);
+        when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(movie));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 11L)).thenReturn(List.of());
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                new CatalogFilterInput(null, null, null, null, null, ContentType.MOVIE, null),
+                CatalogSortOption.TITLE_ASC,
+                new PaginationInput(0, 10)
+        ));
+
+        assertThat(page.items()).hasSize(1);
+        verify(seriesRepository, never()).findAll(any(Specification.class));
     }
 
     private Movie movie(Long id, String title, ContentAccessLevel accessLevel) {

@@ -26,6 +26,8 @@ import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
+import com.ott.streaming.repository.spec.MovieSpecifications;
+import com.ott.streaming.repository.spec.SeriesSpecifications;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -227,69 +229,21 @@ public class ContentQueryService {
 
     private List<CatalogItemPayload> buildCatalogItems(String search, CatalogFilterInput filter) {
         String normalizedSearch = normalizeSearch(search);
-        List<Movie> movies = normalizedSearch == null
-                ? movieRepository.findAll()
-                : movieRepository.findByTitleContainingIgnoreCase(normalizedSearch);
-        List<Series> seriesList = normalizedSearch == null
-                ? seriesRepository.findAll()
-                : seriesRepository.findByTitleContainingIgnoreCase(normalizedSearch);
+        List<Movie> movies = shouldIncludeMovies(filter)
+                ? movieRepository.findAll(MovieSpecifications.forCatalog(normalizedSearch, filter))
+                : List.of();
+        List<Series> seriesList = shouldIncludeSeries(filter)
+                ? seriesRepository.findAll(SeriesSpecifications.forCatalog(normalizedSearch, filter))
+                : List.of();
         Map<ContentKey, Double> averageRatings = buildAverageRatings(movies, seriesList);
 
         return java.util.stream.Stream.concat(
                         movies.stream()
-                                .filter(movie -> matchesMovieFilter(movie, filter))
                                 .map(movie -> toCatalogMovieItem(movie, averageRatings)),
                         seriesList.stream()
-                                .filter(series -> matchesSeriesFilter(series, filter))
                                 .map(series -> toCatalogSeriesItem(series, averageRatings))
                 )
                 .toList();
-    }
-
-    private boolean matchesMovieFilter(Movie movie, CatalogFilterInput filter) {
-        if (filter == null) {
-            return true;
-        }
-
-        if (filter.contentType() != null && filter.contentType() != ContentType.MOVIE) {
-            return false;
-        }
-        if (filter.accessLevel() != null && movie.getAccessLevel() != filter.accessLevel()) {
-            return false;
-        }
-        if (filter.releaseYear() != null
-                && (movie.getReleaseDate() == null || movie.getReleaseDate().getYear() != filter.releaseYear())) {
-            return false;
-        }
-        if (filter.language() != null && !matchesLanguage(movie.getLanguage(), filter.language())) {
-            return false;
-        }
-        return filter.genreId() == null || movie.getGenres().stream()
-                .map(Genre::getId)
-                .anyMatch(filter.genreId()::equals);
-    }
-
-    private boolean matchesSeriesFilter(Series series, CatalogFilterInput filter) {
-        if (filter == null) {
-            return true;
-        }
-
-        if (filter.contentType() != null && filter.contentType() != ContentType.SERIES) {
-            return false;
-        }
-        if (filter.accessLevel() != null && series.getAccessLevel() != filter.accessLevel()) {
-            return false;
-        }
-        if (filter.releaseYear() != null
-                && (series.getReleaseDate() == null || series.getReleaseDate().getYear() != filter.releaseYear())) {
-            return false;
-        }
-        if (filter.language() != null && !matchesLanguage(series.getLanguage(), filter.language())) {
-            return false;
-        }
-        return filter.genreId() == null || series.getGenres().stream()
-                .map(Genre::getId)
-                .anyMatch(filter.genreId()::equals);
     }
 
     private CatalogItemPayload toCatalogMovieItem(Movie movie, Map<ContentKey, Double> averageRatings) {
@@ -350,10 +304,6 @@ public class ContentQueryService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    private boolean matchesLanguage(String contentLanguage, String filterLanguage) {
-        return contentLanguage != null && contentLanguage.equalsIgnoreCase(filterLanguage.trim());
-    }
-
     private boolean matchesRatingFilter(CatalogItemPayload item, CatalogFilterInput filter) {
         if (filter == null) {
             return true;
@@ -387,6 +337,14 @@ public class ContentQueryService {
                 .boxed()
                 .findFirst()
                 .orElse(null);
+    }
+
+    private boolean shouldIncludeMovies(CatalogFilterInput filter) {
+        return filter == null || filter.contentType() == null || filter.contentType() == ContentType.MOVIE;
+    }
+
+    private boolean shouldIncludeSeries(CatalogFilterInput filter) {
+        return filter == null || filter.contentType() == null || filter.contentType() == ContentType.SERIES;
     }
 
     private String currentAuthenticatedEmail() {
