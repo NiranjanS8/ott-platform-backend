@@ -4,6 +4,7 @@ import com.ott.streaming.dto.subscription.SubscribeToPlanInput;
 import com.ott.streaming.dto.subscription.UserSubscriptionPayload;
 import com.ott.streaming.entity.SubscriptionPlan;
 import com.ott.streaming.entity.SubscriptionStatus;
+import com.ott.streaming.entity.Role;
 import com.ott.streaming.entity.User;
 import com.ott.streaming.entity.UserSubscription;
 import com.ott.streaming.exception.ApiException;
@@ -62,6 +63,27 @@ public class UserSubscriptionService {
                 .map(this::expireIfNeeded)
                 .map(this::toPayload)
                 .orElse(null);
+    }
+
+    public boolean hasPremiumAccess(String email) {
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        return userRepository.findByEmail(normalizeEmail(email))
+                .map(user -> {
+                    if (user.getRole() == Role.ADMIN) {
+                        return true;
+                    }
+
+                    return userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(
+                                    user.getId(),
+                                    SubscriptionStatus.ACTIVE
+                            )
+                            .map(this::expireIfNeeded)
+                            .isPresent();
+                })
+                .orElse(false);
     }
 
     private void closeExistingActiveSubscription(Long userId) {

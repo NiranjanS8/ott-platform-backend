@@ -1,0 +1,166 @@
+package com.ott.streaming.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
+import com.ott.streaming.dto.content.MoviePayload;
+import com.ott.streaming.dto.content.SeasonPayload;
+import com.ott.streaming.entity.ContentAccessLevel;
+import com.ott.streaming.entity.Episode;
+import com.ott.streaming.entity.Movie;
+import com.ott.streaming.entity.Season;
+import com.ott.streaming.entity.Series;
+import com.ott.streaming.exception.ApiException;
+import com.ott.streaming.repository.EpisodeRepository;
+import com.ott.streaming.repository.MovieRepository;
+import com.ott.streaming.repository.SeasonRepository;
+import com.ott.streaming.repository.SeriesRepository;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+@ExtendWith(MockitoExtension.class)
+class ContentQueryServiceTest {
+
+    @Mock
+    private MovieRepository movieRepository;
+
+    @Mock
+    private SeriesRepository seriesRepository;
+
+    @Mock
+    private SeasonRepository seasonRepository;
+
+    @Mock
+    private EpisodeRepository episodeRepository;
+
+    @Mock
+    private UserSubscriptionService userSubscriptionService;
+
+    private ContentQueryService contentQueryService;
+
+    @BeforeEach
+    void setUp() {
+        contentQueryService = new ContentQueryService(
+                movieRepository,
+                seriesRepository,
+                seasonRepository,
+                episodeRepository,
+                userSubscriptionService
+        );
+    }
+
+    @Test
+    void getMoviesReturnsPremiumAndFreeMetadataWithoutSubscriptionFilter() {
+        Movie freeMovie = movie(1L, "Free Movie", ContentAccessLevel.FREE);
+        Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
+        when(movieRepository.findAll()).thenReturn(List.of(freeMovie, premiumMovie));
+
+        List<MoviePayload> payloads = contentQueryService.getMovies();
+
+        assertThat(payloads).hasSize(2);
+        assertThat(payloads.get(1).accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
+    }
+
+    @Test
+    void getMovieByIdBlocksPremiumContentWithoutSubscription() {
+        Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
+        when(movieRepository.findById(2L)).thenReturn(Optional.of(premiumMovie));
+        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
+
+        assertThatThrownBy(() -> contentQueryService.getMovieById(null, 2L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Premium subscription required to access this content");
+    }
+
+    @Test
+    void getMovieByIdAllowsPremiumContentWithSubscription() {
+        Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
+        when(movieRepository.findById(2L)).thenReturn(Optional.of(premiumMovie));
+        when(userSubscriptionService.hasPremiumAccess("member@example.com")).thenReturn(true);
+
+        MoviePayload payload = contentQueryService.getMovieById("member@example.com", 2L);
+
+        assertThat(payload).isNotNull();
+        assertThat(payload.accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
+    }
+
+    @Test
+    void getSeasonByIdBlocksPremiumParentSeriesWithoutSubscription() {
+        Series premiumSeries = series(9L, "Premium Series", ContentAccessLevel.PREMIUM);
+        Season season = season(3L, premiumSeries);
+        when(seasonRepository.findById(3L)).thenReturn(Optional.of(season));
+        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
+
+        assertThatThrownBy(() -> contentQueryService.getSeasonById(null, 3L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Premium subscription required to access this content");
+    }
+
+    @Test
+    void getEpisodeByIdBlocksPremiumParentSeriesWithoutSubscription() {
+        Series premiumSeries = series(9L, "Premium Series", ContentAccessLevel.PREMIUM);
+        Season season = season(3L, premiumSeries);
+        Episode episode = episode(4L, season);
+
+        when(episodeRepository.findById(4L)).thenReturn(Optional.of(episode));
+        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
+
+        assertThatThrownBy(() -> contentQueryService.getEpisodeById(null, 4L))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Premium subscription required to access this content");
+    }
+
+    private Movie movie(Long id, String title, ContentAccessLevel accessLevel) {
+        Movie movie = new Movie();
+        movie.setId(id);
+        movie.setTitle(title);
+        movie.setAccessLevel(accessLevel);
+        movie.setReleaseDate(LocalDate.parse("2026-04-01"));
+        ReflectionTestUtils.setField(movie, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(movie, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return movie;
+    }
+
+    private Series series(Long id, String title, ContentAccessLevel accessLevel) {
+        Series series = new Series();
+        series.setId(id);
+        series.setTitle(title);
+        series.setAccessLevel(accessLevel);
+        series.setReleaseDate(LocalDate.parse("2026-04-01"));
+        ReflectionTestUtils.setField(series, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(series, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return series;
+    }
+
+    private Season season(Long id, Series series) {
+        Season season = new Season();
+        season.setId(id);
+        season.setTitle("Season 1");
+        season.setSeasonNumber(1);
+        season.setSeries(series);
+        ReflectionTestUtils.setField(season, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(season, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return season;
+    }
+
+    private Episode episode(Long id, Season season) {
+        Episode episode = new Episode();
+        episode.setId(id);
+        episode.setSeason(season);
+        episode.setTitle("Episode 1");
+        episode.setEpisodeNumber(1);
+        ReflectionTestUtils.setField(episode, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
+        ReflectionTestUtils.setField(episode, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
+        return episode;
+    }
+
+}

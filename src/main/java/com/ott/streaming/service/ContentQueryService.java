@@ -6,18 +6,25 @@ import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.PersonPayload;
 import com.ott.streaming.dto.content.SeasonPayload;
 import com.ott.streaming.dto.content.SeriesPayload;
+import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
+import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.graphql.execution.ErrorType;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,15 +34,18 @@ public class ContentQueryService {
     private final SeriesRepository seriesRepository;
     private final SeasonRepository seasonRepository;
     private final EpisodeRepository episodeRepository;
+    private final UserSubscriptionService userSubscriptionService;
 
     public ContentQueryService(MovieRepository movieRepository,
                                SeriesRepository seriesRepository,
                                SeasonRepository seasonRepository,
-                               EpisodeRepository episodeRepository) {
+                               EpisodeRepository episodeRepository,
+                               UserSubscriptionService userSubscriptionService) {
         this.movieRepository = movieRepository;
         this.seriesRepository = seriesRepository;
         this.seasonRepository = seasonRepository;
         this.episodeRepository = episodeRepository;
+        this.userSubscriptionService = userSubscriptionService;
     }
 
     public List<MoviePayload> getMovies() {
@@ -45,8 +55,15 @@ public class ContentQueryService {
     }
 
     public MoviePayload getMovieById(Long id) {
+        return getMovieById(currentAuthenticatedEmail(), id);
+    }
+
+    public MoviePayload getMovieById(String email, Long id) {
         return movieRepository.findById(id)
-                .map(this::toMoviePayload)
+                .map(movie -> {
+                    enforceContentAccess(email, movie.getAccessLevel());
+                    return toMoviePayload(movie);
+                })
                 .orElse(null);
     }
 
@@ -57,20 +74,41 @@ public class ContentQueryService {
     }
 
     public SeriesPayload getSeriesById(Long id) {
+        return getSeriesById(currentAuthenticatedEmail(), id);
+    }
+
+    public SeriesPayload getSeriesById(String email, Long id) {
         return seriesRepository.findById(id)
-                .map(this::toSeriesPayload)
+                .map(series -> {
+                    enforceContentAccess(email, series.getAccessLevel());
+                    return toSeriesPayload(series);
+                })
                 .orElse(null);
     }
 
     public SeasonPayload getSeasonById(Long id) {
+        return getSeasonById(currentAuthenticatedEmail(), id);
+    }
+
+    public SeasonPayload getSeasonById(String email, Long id) {
         return seasonRepository.findById(id)
-                .map(this::toSeasonPayload)
+                .map(season -> {
+                    enforceContentAccess(email, season.getSeries().getAccessLevel());
+                    return toSeasonPayload(season);
+                })
                 .orElse(null);
     }
 
     public EpisodePayload getEpisodeById(Long id) {
+        return getEpisodeById(currentAuthenticatedEmail(), id);
+    }
+
+    public EpisodePayload getEpisodeById(String email, Long id) {
         return episodeRepository.findById(id)
-                .map(this::toEpisodePayload)
+                .map(episode -> {
+                    enforceContentAccess(email, episode.getSeason().getSeries().getAccessLevel());
+                    return toEpisodePayload(episode);
+                })
                 .orElse(null);
     }
 
@@ -136,6 +174,33 @@ public class ContentQueryService {
                 .flatMap(season -> season.getEpisodes().stream())
                 .map(this::toEpisodePayload)
                 .toList();
+    }
+
+    private void enforceContentAccess(String email, ContentAccessLevel accessLevel) {
+        if (accessLevel != ContentAccessLevel.PREMIUM) {
+            return;
+        }
+
+        if (!userSubscriptionService.hasPremiumAccess(email)) {
+            throw new ApiException("Premium subscription required to access this content", ErrorType.FORBIDDEN);
+        }
+    }
+
+    private String currentAuthenticatedEmail() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            return null;
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
+        }
+        if (principal instanceof String username) {
+            return username;
+        }
+        return authentication.getName();
     }
 
     private MoviePayload toMoviePayload(Movie movie) {

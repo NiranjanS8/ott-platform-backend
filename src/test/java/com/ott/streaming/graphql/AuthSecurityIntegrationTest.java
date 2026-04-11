@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.ott.streaming.entity.Role;
 import com.ott.streaming.entity.User;
+import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.SubscriptionPlan;
 import com.ott.streaming.entity.UserSubscription;
 import com.ott.streaming.repository.UserRepository;
@@ -758,6 +759,72 @@ class AuthSecurityIntegrationTest {
         assertThat(json.at("/data/currentSubscription/status").asText()).isEqualTo("ACTIVE");
     }
 
+    @Test
+    void premiumMovieQueryIsBlockedWithoutActiveSubscription() throws Exception {
+        Movie movie = new Movie();
+        movie.setId(90L);
+        movie.setTitle("Premium Movie");
+        movie.setAccessLevel(ContentAccessLevel.PREMIUM);
+        ReflectionTestUtils.setField(movie, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(movie, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(movieRepository.findById(90L)).thenReturn(Optional.of(movie));
+
+        JsonNode json = executeAnonymousGraphQl("""
+                query {
+                  movie(id: "90") {
+                    id
+                    title
+                    accessLevel
+                  }
+                }
+                """);
+
+        assertThat(json.at("/errors").isArray()).isTrue();
+        assertThat(json.at("/errors/0/message").asText()).contains("Premium subscription required");
+    }
+
+    @Test
+    void premiumMovieQueryWorksWithActiveSubscription() throws Exception {
+        User user = buildUser(21L, "Member", "member@example.com", Role.USER);
+        Movie movie = new Movie();
+        movie.setId(91L);
+        movie.setTitle("Premium Movie");
+        movie.setAccessLevel(ContentAccessLevel.PREMIUM);
+        ReflectionTestUtils.setField(movie, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(movie, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        UserSubscription subscription = new UserSubscription();
+        subscription.setId(92L);
+        subscription.setUserId(21L);
+        subscription.setPlanId(70L);
+        subscription.setStatus(com.ott.streaming.entity.SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(Instant.parse("2026-04-11T10:00:00Z"));
+        subscription.setEndDate(Instant.parse("2026-05-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.findById(91L)).thenReturn(Optional.of(movie));
+        when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(
+                21L, com.ott.streaming.entity.SubscriptionStatus.ACTIVE
+        )).thenReturn(Optional.of(subscription));
+
+        JsonNode json = executeGraphQl("""
+                query {
+                  movie(id: "91") {
+                    id
+                    title
+                    accessLevel
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/movie/id").asText()).isEqualTo("91");
+        assertThat(json.at("/data/movie/title").asText()).isEqualTo("Premium Movie");
+        assertThat(json.at("/data/movie/accessLevel").asText()).isEqualTo("PREMIUM");
+    }
+
     private JsonNode executeGraphQl(String document, User user) throws Exception {
         String token = jwtService.generateAccessToken(user);
         String payload = objectMapper.writeValueAsString(new GraphQlRequest(document));
@@ -765,6 +832,18 @@ class AuthSecurityIntegrationTest {
         MvcResult result = mockMvc.perform(post("/graphql")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer " + token)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return objectMapper.readTree(result.getResponse().getContentAsString());
+    }
+
+    private JsonNode executeAnonymousGraphQl(String document) throws Exception {
+        String payload = objectMapper.writeValueAsString(new GraphQlRequest(document));
+
+        MvcResult result = mockMvc.perform(post("/graphql")
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk())
                 .andReturn();

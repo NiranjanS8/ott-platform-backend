@@ -167,6 +167,20 @@ class UserSubscriptionServiceTest {
         verify(userSubscriptionRepository).save(subscription);
     }
 
+    @Test
+    void hasPremiumAccessReturnsFalseForAnonymousRequest() {
+        assertThat(userSubscriptionService.hasPremiumAccess(null)).isFalse();
+    }
+
+    @Test
+    void hasPremiumAccessReturnsTrueForAdminUser() {
+        User admin = existingUser();
+        admin.setRole(Role.ADMIN);
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(admin));
+
+        assertThat(userSubscriptionService.hasPremiumAccess("member@example.com")).isTrue();
+    }
+
     private User existingUser() {
         User user = new User();
         user.setId(5L);
