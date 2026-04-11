@@ -1,0 +1,22 @@
+extend type Query {
+  myWatchlist: [WatchlistItem!]!
+}
+
+extend type Mutation {
+  addToWatchlist(input: AddToWatchlistInput!): WatchlistItem!
+  removeFromWatchlist(contentType: ContentType!, contentId: ID!): Boolean!
+}
+
+type WatchlistItem {
+  id: ID!
+  userId: ID!
+  contentType: ContentType!
+  contentId: ID!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input AddToWatchlistInput {
+  contentType: ContentType!
+  contentId: ID!
+}

@@ -18,6 +18,7 @@ import com.ott.streaming.entity.Person;
 import com.ott.streaming.entity.Review;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
+import com.ott.streaming.entity.WatchlistItem;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
+import com.ott.streaming.repository.WatchlistItemRepository;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -81,6 +83,9 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private ReviewRepository reviewRepository;
+
+    @MockitoBean
+    private WatchlistItemRepository watchlistItemRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -326,6 +331,71 @@ class AuthSecurityIntegrationTest {
 
         assertThat(json.at("/errors").isArray()).isTrue();
         assertThat(json.at("/errors/0/message").asText()).contains("not allowed to modify this review");
+    }
+
+    @Test
+    void addToWatchlistWorksForAuthenticatedUser() throws Exception {
+        User user = buildUser(10L, "Member", "member@example.com", Role.USER);
+        WatchlistItem item = new WatchlistItem();
+        item.setId(30L);
+        item.setUserId(10L);
+        item.setContentType(com.ott.streaming.entity.ContentType.MOVIE);
+        item.setContentId(12L);
+        ReflectionTestUtils.setField(item, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(item, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.existsById(12L)).thenReturn(true);
+        when(watchlistItemRepository.existsByUserIdAndContentTypeAndContentId(
+                10L, com.ott.streaming.entity.ContentType.MOVIE, 12L
+        )).thenReturn(false);
+        when(watchlistItemRepository.save(any(WatchlistItem.class))).thenReturn(item);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  addToWatchlist(input: {
+                    contentType: MOVIE
+                    contentId: "12"
+                  }) {
+                    id
+                    userId
+                    contentId
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/addToWatchlist/id").asText()).isEqualTo("30");
+        assertThat(json.at("/data/addToWatchlist/userId").asText()).isEqualTo("10");
+        assertThat(json.at("/data/addToWatchlist/contentId").asText()).isEqualTo("12");
+    }
+
+    @Test
+    void myWatchlistReturnsUserScopedItems() throws Exception {
+        User user = buildUser(11L, "Member", "member@example.com", Role.USER);
+        WatchlistItem item = new WatchlistItem();
+        item.setId(31L);
+        item.setUserId(11L);
+        item.setContentType(com.ott.streaming.entity.ContentType.SERIES);
+        item.setContentId(77L);
+        ReflectionTestUtils.setField(item, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(item, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(watchlistItemRepository.findByUserIdOrderByCreatedAtDesc(11L)).thenReturn(java.util.List.of(item));
+
+        JsonNode json = executeGraphQl("""
+                query {
+                  myWatchlist {
+                    id
+                    contentType
+                    contentId
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/myWatchlist/0/id").asText()).isEqualTo("31");
+        assertThat(json.at("/data/myWatchlist/0/contentType").asText()).isEqualTo("SERIES");
+        assertThat(json.at("/data/myWatchlist/0/contentId").asText()).isEqualTo("77");
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {
