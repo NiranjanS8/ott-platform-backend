@@ -3,6 +3,8 @@ package com.ott.streaming.entity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -44,6 +46,10 @@ public class Series {
     @Column(name = "maturity_rating", length = 20)
     private String maturityRating;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "access_level", nullable = false, length = 20)
+    private ContentAccessLevel accessLevel;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "series_genres",
@@ -82,6 +88,9 @@ public class Series {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (accessLevel == null) {
+            accessLevel = ContentAccessLevel.FREE;
+        }
     }
 
     @PreUpdate
@@ -135,6 +144,14 @@ public class Series {
 
     public void setMaturityRating(String maturityRating) {
         this.maturityRating = maturityRating;
+    }
+
+    public ContentAccessLevel getAccessLevel() {
+        return accessLevel;
+    }
+
+    public void setAccessLevel(ContentAccessLevel accessLevel) {
+        this.accessLevel = accessLevel;
     }
 
     public Set<Genre> getGenres() {

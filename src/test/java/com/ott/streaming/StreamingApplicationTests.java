@@ -11,7 +11,9 @@ import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
+import com.ott.streaming.repository.SubscriptionPlanRepository;
 import com.ott.streaming.repository.UserRepository;
+import com.ott.streaming.repository.UserSubscriptionRepository;
 import com.ott.streaming.repository.WatchProgressRepository;
 import com.ott.streaming.repository.WatchlistItemRepository;
 
@@ -52,6 +54,12 @@ class StreamingApplicationTests {
 
     @MockitoBean
     WatchProgressRepository watchProgressRepository;
+
+    @MockitoBean
+    SubscriptionPlanRepository subscriptionPlanRepository;
+
+    @MockitoBean
+    UserSubscriptionRepository userSubscriptionRepository;
 
     @Test
     void contextLoads() {
