@@ -485,6 +485,106 @@ class AuthSecurityIntegrationTest {
         assertThat(json.at("/data/markAsCompleted/completed").asBoolean()).isTrue();
     }
 
+    @Test
+    void continueWatchingReturnsOrderedInProgressEntries() throws Exception {
+        User user = buildUser(14L, "Member", "member@example.com", Role.USER);
+        WatchProgress recent = new WatchProgress();
+        recent.setId(50L);
+        recent.setUserId(14L);
+        recent.setContentType(com.ott.streaming.entity.ContentType.SERIES);
+        recent.setContentId(77L);
+        recent.setSeasonId(8L);
+        recent.setEpisodeId(9L);
+        recent.setProgressSeconds(600);
+        recent.setDurationSeconds(3600);
+        recent.setCompleted(false);
+        recent.setLastWatchedAt(Instant.parse("2026-04-11T12:00:00Z"));
+        ReflectionTestUtils.setField(recent, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(recent, "updatedAt", Instant.parse("2026-04-11T12:00:00Z"));
+
+        WatchProgress completed = new WatchProgress();
+        completed.setId(51L);
+        completed.setUserId(14L);
+        completed.setContentType(com.ott.streaming.entity.ContentType.MOVIE);
+        completed.setContentId(12L);
+        completed.setProgressSeconds(7200);
+        completed.setDurationSeconds(7200);
+        completed.setCompleted(true);
+        completed.setLastWatchedAt(Instant.parse("2026-04-11T11:00:00Z"));
+        ReflectionTestUtils.setField(completed, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(completed, "updatedAt", Instant.parse("2026-04-11T11:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(14L))
+                .thenReturn(java.util.List.of(recent, completed));
+
+        JsonNode json = executeGraphQl("""
+                query {
+                  continueWatching {
+                    id
+                    contentType
+                    contentId
+                    episodeId
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/continueWatching/0/id").asText()).isEqualTo("50");
+        assertThat(json.at("/data/continueWatching/0/contentType").asText()).isEqualTo("SERIES");
+        assertThat(json.at("/data/continueWatching/0/episodeId").asText()).isEqualTo("9");
+        assertThat(json.at("/data/continueWatching/1").isMissingNode()).isTrue();
+    }
+
+    @Test
+    void watchHistoryReturnsRecentEntriesForUser() throws Exception {
+        User user = buildUser(15L, "Member", "member@example.com", Role.USER);
+        WatchProgress recent = new WatchProgress();
+        recent.setId(52L);
+        recent.setUserId(15L);
+        recent.setContentType(com.ott.streaming.entity.ContentType.MOVIE);
+        recent.setContentId(12L);
+        recent.setProgressSeconds(120);
+        recent.setDurationSeconds(7200);
+        recent.setCompleted(false);
+        recent.setLastWatchedAt(Instant.parse("2026-04-11T12:00:00Z"));
+        ReflectionTestUtils.setField(recent, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(recent, "updatedAt", Instant.parse("2026-04-11T12:00:00Z"));
+
+        WatchProgress older = new WatchProgress();
+        older.setId(53L);
+        older.setUserId(15L);
+        older.setContentType(com.ott.streaming.entity.ContentType.SERIES);
+        older.setContentId(77L);
+        older.setSeasonId(8L);
+        older.setEpisodeId(9L);
+        older.setProgressSeconds(3600);
+        older.setDurationSeconds(3600);
+        older.setCompleted(true);
+        older.setLastWatchedAt(Instant.parse("2026-04-11T11:00:00Z"));
+        ReflectionTestUtils.setField(older, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(older, "updatedAt", Instant.parse("2026-04-11T11:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(15L))
+                .thenReturn(java.util.List.of(recent, older));
+
+        JsonNode json = executeGraphQl("""
+                query {
+                  watchHistory {
+                    id
+                    contentType
+                    contentId
+                    completed
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/watchHistory/0/id").asText()).isEqualTo("52");
+        assertThat(json.at("/data/watchHistory/0/contentType").asText()).isEqualTo("MOVIE");
+        assertThat(json.at("/data/watchHistory/1/id").asText()).isEqualTo("53");
+        assertThat(json.at("/data/watchHistory/1/contentType").asText()).isEqualTo("SERIES");
+    }
+
     private JsonNode executeGraphQl(String document, User user) throws Exception {
         String token = jwtService.generateAccessToken(user);
         String payload = objectMapper.writeValueAsString(new GraphQlRequest(document));

@@ -9,6 +9,7 @@ import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.WatchProgressService;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
@@ -108,5 +109,80 @@ class WatchProgressGraphQlControllerTest {
                 .path("markAsCompleted.contentType").entity(String.class).isEqualTo("SERIES")
                 .path("markAsCompleted.episodeId").entity(String.class).isEqualTo("9")
                 .path("markAsCompleted.completed").entity(Boolean.class).isEqualTo(true);
+    }
+
+    @Test
+    @WithMockUser(username = "member@example.com", roles = "USER")
+    void continueWatchingReturnsInProgressItems() {
+        when(watchProgressService.getContinueWatching("member@example.com")).thenReturn(List.of(
+                new WatchProgressPayload(
+                        3L,
+                        9L,
+                        ContentType.SERIES,
+                        77L,
+                        8L,
+                        9L,
+                        600,
+                        3600,
+                        false,
+                        Instant.parse("2026-04-11T12:00:00Z"),
+                        Instant.parse("2026-04-11T10:00:00Z"),
+                        Instant.parse("2026-04-11T12:00:00Z")
+                )
+        ));
+
+        graphQlTester.document("""
+                query {
+                  continueWatching {
+                    id
+                    contentType
+                    contentId
+                    episodeId
+                    completed
+                  }
+                }
+                """)
+                .execute()
+                .path("continueWatching[0].id").entity(String.class).isEqualTo("3")
+                .path("continueWatching[0].contentType").entity(String.class).isEqualTo("SERIES")
+                .path("continueWatching[0].episodeId").entity(String.class).isEqualTo("9")
+                .path("continueWatching[0].completed").entity(Boolean.class).isEqualTo(false);
+    }
+
+    @Test
+    @WithMockUser(username = "member@example.com", roles = "USER")
+    void watchHistoryReturnsAllHistoryItems() {
+        when(watchProgressService.getWatchHistory("member@example.com")).thenReturn(List.of(
+                new WatchProgressPayload(
+                        4L,
+                        9L,
+                        ContentType.MOVIE,
+                        12L,
+                        null,
+                        null,
+                        7200,
+                        7200,
+                        true,
+                        Instant.parse("2026-04-11T11:00:00Z"),
+                        Instant.parse("2026-04-11T10:00:00Z"),
+                        Instant.parse("2026-04-11T11:00:00Z")
+                )
+        ));
+
+        graphQlTester.document("""
+                query {
+                  watchHistory {
+                    id
+                    contentType
+                    contentId
+                    completed
+                  }
+                }
+                """)
+                .execute()
+                .path("watchHistory[0].id").entity(String.class).isEqualTo("4")
+                .path("watchHistory[0].contentType").entity(String.class).isEqualTo("MOVIE")
+                .path("watchHistory[0].contentId").entity(String.class).isEqualTo("12")
+                .path("watchHistory[0].completed").entity(Boolean.class).isEqualTo(true);
     }
 }

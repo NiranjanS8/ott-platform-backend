@@ -1,5 +1,7 @@
 extend type Query {
   myWatchlist: [WatchlistItem!]!
+  continueWatching: [WatchProgress!]!
+  watchHistory: [WatchProgress!]!
 }
 
 extend type Mutation {

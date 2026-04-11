@@ -13,6 +13,7 @@ import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.repository.WatchProgressRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.graphql.execution.ErrorType;
@@ -72,6 +73,24 @@ public class WatchProgressService {
         progress.setLastWatchedAt(Instant.now());
 
         return toPayload(watchProgressRepository.save(progress));
+    }
+
+    public List<WatchProgressPayload> getContinueWatching(String email) {
+        User currentUser = getAuthenticatedUser(email);
+
+        return watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(currentUser.getId()).stream()
+                .filter(progress -> !progress.isCompleted())
+                .filter(progress -> progress.getProgressSeconds() != null && progress.getProgressSeconds() > 0)
+                .map(this::toPayload)
+                .toList();
+    }
+
+    public List<WatchProgressPayload> getWatchHistory(String email) {
+        User currentUser = getAuthenticatedUser(email);
+
+        return watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(currentUser.getId()).stream()
+                .map(this::toPayload)
+                .toList();
     }
 
     private User getAuthenticatedUser(String email) {

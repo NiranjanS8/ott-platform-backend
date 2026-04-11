@@ -20,6 +20,7 @@ import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.repository.WatchProgressRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -186,6 +187,46 @@ class WatchProgressServiceTest {
         ))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Progress seconds cannot exceed duration seconds");
+    }
+
+    @Test
+    void getContinueWatchingReturnsOnlyInProgressItemsOrderedByRecentActivity() {
+        User user = buildUser(1L);
+        WatchProgress recentInProgress = buildProgress(1L, 1L, ContentType.SERIES, 77L, 8L, 9L, 600, 3600, false);
+        recentInProgress.setLastWatchedAt(Instant.parse("2026-04-11T12:00:00Z"));
+        WatchProgress completed = buildProgress(2L, 1L, ContentType.MOVIE, 42L, null, null, 7200, 7200, true);
+        completed.setLastWatchedAt(Instant.parse("2026-04-11T11:00:00Z"));
+        WatchProgress zeroProgress = buildProgress(3L, 1L, ContentType.MOVIE, 99L, null, null, 0, 5400, false);
+        zeroProgress.setLastWatchedAt(Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(1L))
+                .thenReturn(List.of(recentInProgress, completed, zeroProgress));
+
+        List<WatchProgressPayload> result = watchProgressService.getContinueWatching("member@example.com");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).contentType()).isEqualTo(ContentType.SERIES);
+        assertThat(result.get(0).episodeId()).isEqualTo(9L);
+    }
+
+    @Test
+    void getWatchHistoryReturnsAllEntriesOrderedByRecentActivity() {
+        User user = buildUser(1L);
+        WatchProgress recent = buildProgress(1L, 1L, ContentType.MOVIE, 42L, null, null, 120, 7200, false);
+        recent.setLastWatchedAt(Instant.parse("2026-04-11T12:00:00Z"));
+        WatchProgress older = buildProgress(2L, 1L, ContentType.SERIES, 77L, 8L, 9L, 3600, 3600, true);
+        older.setLastWatchedAt(Instant.parse("2026-04-11T11:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(watchProgressRepository.findByUserIdOrderByLastWatchedAtDesc(1L))
+                .thenReturn(List.of(recent, older));
+
+        List<WatchProgressPayload> result = watchProgressService.getWatchHistory("member@example.com");
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).contentId()).isEqualTo(42L);
+        assertThat(result.get(1).contentId()).isEqualTo(77L);
     }
 
     private User buildUser(Long id) {
