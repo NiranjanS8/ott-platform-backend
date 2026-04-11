@@ -12,6 +12,8 @@ import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
+import com.ott.streaming.repository.WatchProgressRepository;
+import com.ott.streaming.repository.WatchlistItemRepository;
 
 @SpringBootTest(properties = {
         "spring.autoconfigure.exclude=" +
@@ -44,6 +46,12 @@ class StreamingApplicationTests {
 
     @MockitoBean
     ReviewRepository reviewRepository;
+
+    @MockitoBean
+    WatchlistItemRepository watchlistItemRepository;
+
+    @MockitoBean
+    WatchProgressRepository watchProgressRepository;
 
     @Test
     void contextLoads() {
