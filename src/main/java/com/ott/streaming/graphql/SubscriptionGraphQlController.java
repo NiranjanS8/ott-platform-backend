@@ -9,11 +9,13 @@ import com.ott.streaming.dto.subscription.UpdateContentAccessInput;
 import com.ott.streaming.dto.subscription.UpdateSubscriptionPlanInput;
 import com.ott.streaming.dto.subscription.UserSubscriptionPayload;
 import com.ott.streaming.service.SubscriptionAdminService;
+import com.ott.streaming.service.UserSubscriptionService;
 import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 
 @Controller
@@ -21,9 +23,12 @@ import org.springframework.validation.annotation.Validated;
 public class SubscriptionGraphQlController {
 
     private final SubscriptionAdminService subscriptionAdminService;
+    private final UserSubscriptionService userSubscriptionService;
 
-    public SubscriptionGraphQlController(SubscriptionAdminService subscriptionAdminService) {
+    public SubscriptionGraphQlController(SubscriptionAdminService subscriptionAdminService,
+                                         UserSubscriptionService userSubscriptionService) {
         this.subscriptionAdminService = subscriptionAdminService;
+        this.userSubscriptionService = userSubscriptionService;
     }
 
     @MutationMapping
@@ -48,12 +53,13 @@ public class SubscriptionGraphQlController {
     }
 
     @MutationMapping
-    public UserSubscriptionPayload subscribeToPlan(@Argument @Valid SubscribeToPlanInput input) {
-        throw new UnsupportedOperationException("User subscription flow will be implemented in phase 5.4");
+    public UserSubscriptionPayload subscribeToPlan(@AuthenticationPrincipal(expression = "username") String email,
+                                                   @Argument @Valid SubscribeToPlanInput input) {
+        return userSubscriptionService.subscribeToPlan(email, input);
     }
 
     @QueryMapping
-    public UserSubscriptionPayload currentSubscription() {
-        throw new UnsupportedOperationException("Current subscription query will be implemented in phase 5.4");
+    public UserSubscriptionPayload currentSubscription(@AuthenticationPrincipal(expression = "username") String email) {
+        return userSubscriptionService.getCurrentSubscription(email);
     }
 }

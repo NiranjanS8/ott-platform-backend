@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ott.streaming.entity.Role;
 import com.ott.streaming.entity.User;
 import com.ott.streaming.entity.SubscriptionPlan;
+import com.ott.streaming.entity.UserSubscription;
 import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.security.JwtService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,6 +41,7 @@ import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.SubscriptionPlanRepository;
+import com.ott.streaming.repository.UserSubscriptionRepository;
 import com.ott.streaming.repository.WatchProgressRepository;
 import com.ott.streaming.repository.WatchlistItemRepository;
 
@@ -96,6 +98,9 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private SubscriptionPlanRepository subscriptionPlanRepository;
+
+    @MockitoBean
+    private UserSubscriptionRepository userSubscriptionRepository;
 
     @Test
     void meQueryWorksWithBearerToken() throws Exception {
@@ -671,6 +676,86 @@ class AuthSecurityIntegrationTest {
 
         assertThat(json.at("/errors").isArray()).isTrue();
         assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+    }
+
+    @Test
+    void subscribeToPlanWorksForAuthenticatedUser() throws Exception {
+        User user = buildUser(19L, "Member", "member@example.com", Role.USER);
+        SubscriptionPlan plan = new SubscriptionPlan();
+        plan.setId(70L);
+        plan.setName("Premium Monthly");
+        plan.setDescription("Monthly access");
+        plan.setPrice(new java.math.BigDecimal("9.99"));
+        plan.setDurationDays(30);
+        plan.setActive(true);
+
+        UserSubscription subscription = new UserSubscription();
+        subscription.setId(71L);
+        subscription.setUserId(19L);
+        subscription.setPlanId(70L);
+        subscription.setStatus(com.ott.streaming.entity.SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(Instant.parse("2026-04-11T10:00:00Z"));
+        subscription.setEndDate(Instant.parse("2026-05-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(subscriptionPlanRepository.findById(70L)).thenReturn(Optional.of(plan));
+        when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(
+                19L, com.ott.streaming.entity.SubscriptionStatus.ACTIVE
+        )).thenReturn(Optional.empty());
+        when(userSubscriptionRepository.save(any(UserSubscription.class))).thenReturn(subscription);
+
+        JsonNode json = executeGraphQl("""
+                mutation {
+                  subscribeToPlan(input: { planId: "70" }) {
+                    id
+                    userId
+                    planId
+                    status
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/subscribeToPlan/id").asText()).isEqualTo("71");
+        assertThat(json.at("/data/subscribeToPlan/userId").asText()).isEqualTo("19");
+        assertThat(json.at("/data/subscribeToPlan/planId").asText()).isEqualTo("70");
+        assertThat(json.at("/data/subscribeToPlan/status").asText()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void currentSubscriptionReturnsActiveSubscriptionForAuthenticatedUser() throws Exception {
+        User user = buildUser(20L, "Member", "member@example.com", Role.USER);
+        UserSubscription subscription = new UserSubscription();
+        subscription.setId(72L);
+        subscription.setUserId(20L);
+        subscription.setPlanId(70L);
+        subscription.setStatus(com.ott.streaming.entity.SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(Instant.parse("2026-04-11T10:00:00Z"));
+        subscription.setEndDate(Instant.parse("2026-05-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
+        ReflectionTestUtils.setField(subscription, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(
+                20L, com.ott.streaming.entity.SubscriptionStatus.ACTIVE
+        )).thenReturn(Optional.of(subscription));
+
+        JsonNode json = executeGraphQl("""
+                query {
+                  currentSubscription {
+                    id
+                    userId
+                    planId
+                    status
+                  }
+                }
+                """, user);
+
+        assertThat(json.at("/data/currentSubscription/id").asText()).isEqualTo("72");
+        assertThat(json.at("/data/currentSubscription/userId").asText()).isEqualTo("20");
+        assertThat(json.at("/data/currentSubscription/planId").asText()).isEqualTo("70");
+        assertThat(json.at("/data/currentSubscription/status").asText()).isEqualTo("ACTIVE");
     }
 
     private JsonNode executeGraphQl(String document, User user) throws Exception {
