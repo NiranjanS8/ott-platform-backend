@@ -10,6 +10,7 @@ public record SeriesPayload(
         String releaseDate,
         String endDate,
         String maturityRating,
+        String language,
         ContentAccessLevel accessLevel,
         Instant createdAt,
         Instant updatedAt

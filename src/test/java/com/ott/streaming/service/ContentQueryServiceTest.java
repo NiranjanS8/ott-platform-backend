@@ -20,6 +20,7 @@ import com.ott.streaming.entity.Series;
 import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.MovieRepository;
+import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.Instant;
@@ -49,6 +50,9 @@ class ContentQueryServiceTest {
     private EpisodeRepository episodeRepository;
 
     @Mock
+    private ReviewRepository reviewRepository;
+
+    @Mock
     private UserSubscriptionService userSubscriptionService;
 
     private ContentQueryService contentQueryService;
@@ -60,6 +64,7 @@ class ContentQueryServiceTest {
                 seriesRepository,
                 seasonRepository,
                 episodeRepository,
+                reviewRepository,
                 userSubscriptionService
         );
     }
@@ -133,6 +138,8 @@ class ContentQueryServiceTest {
         when(seriesRepository.findByTitleContainingIgnoreCase("dark")).thenReturn(List.of(
                 series(2L, "Dark", ContentAccessLevel.PREMIUM)
         ));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 2L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 " dark ",
@@ -158,6 +165,9 @@ class ContentQueryServiceTest {
         when(seriesRepository.findAll()).thenReturn(List.of(
                 series(3L, "Gamma", ContentAccessLevel.FREE)
         ));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -181,17 +191,23 @@ class ContentQueryServiceTest {
         Movie matchingMovie = movie(1L, "Arrival", ContentAccessLevel.PREMIUM);
         matchingMovie.setGenres(java.util.Set.of(genre(10L, "Sci-Fi")));
         matchingMovie.setReleaseDate(LocalDate.parse("2021-02-10"));
+        matchingMovie.setLanguage("English");
 
         Movie wrongGenreMovie = movie(2L, "Drama Film", ContentAccessLevel.PREMIUM);
         wrongGenreMovie.setGenres(java.util.Set.of(genre(11L, "Drama")));
         wrongGenreMovie.setReleaseDate(LocalDate.parse("2021-03-10"));
+        wrongGenreMovie.setLanguage("English");
 
         Series wrongTypeSeries = series(3L, "Arrival Series", ContentAccessLevel.PREMIUM);
         wrongTypeSeries.setGenres(java.util.Set.of(genre(10L, "Sci-Fi")));
         wrongTypeSeries.setReleaseDate(LocalDate.parse("2021-04-10"));
+        wrongTypeSeries.setLanguage("English");
 
         when(movieRepository.findAll()).thenReturn(List.of(matchingMovie, wrongGenreMovie));
         when(seriesRepository.findAll()).thenReturn(List.of(wrongTypeSeries));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -210,12 +226,16 @@ class ContentQueryServiceTest {
     void discoverCatalogFiltersSeriesByReleaseYearAndAccessLevel() {
         Series matchingSeries = series(4L, "Dark", ContentAccessLevel.FREE);
         matchingSeries.setReleaseDate(LocalDate.parse("2017-12-01"));
+        matchingSeries.setLanguage("German");
 
         Series wrongYearSeries = series(5L, "1899", ContentAccessLevel.FREE);
         wrongYearSeries.setReleaseDate(LocalDate.parse("2022-11-17"));
+        wrongYearSeries.setLanguage("German");
 
         when(movieRepository.findAll()).thenReturn(List.of());
         when(seriesRepository.findAll()).thenReturn(List.of(matchingSeries, wrongYearSeries));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 4L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 5L)).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -227,6 +247,39 @@ class ContentQueryServiceTest {
         assertThat(page.items()).hasSize(1);
         assertThat(page.items().getFirst().id()).isEqualTo(4L);
         assertThat(page.items().getFirst().contentType()).isEqualTo(ContentType.SERIES);
+    }
+
+    @Test
+    void discoverCatalogFiltersByLanguageAndRatingRangeAndSortsTopRated() {
+        Movie highRatedMovie = movie(1L, "Arrival", ContentAccessLevel.FREE);
+        highRatedMovie.setLanguage("English");
+
+        Movie lowRatedMovie = movie(2L, "Moon", ContentAccessLevel.FREE);
+        lowRatedMovie.setLanguage("English");
+
+        Series wrongLanguageSeries = series(3L, "Dark", ContentAccessLevel.FREE);
+        wrongLanguageSeries.setLanguage("German");
+
+        when(movieRepository.findAll()).thenReturn(List.of(highRatedMovie, lowRatedMovie));
+        when(seriesRepository.findAll()).thenReturn(List.of(wrongLanguageSeries));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L))
+                .thenReturn(List.of(review(5), review(4)));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L))
+                .thenReturn(List.of(review(2), review(3)));
+        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L))
+                .thenReturn(List.of(review(5)));
+
+        CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
+                null,
+                new CatalogFilterInput(null, " english ", null, 4.0, 5.0, null, null),
+                CatalogSortOption.TOP_RATED,
+                new PaginationInput(0, 10)
+        ));
+
+        assertThat(page.items()).hasSize(1);
+        assertThat(page.items().getFirst().id()).isEqualTo(1L);
+        assertThat(page.items().getFirst().language()).isEqualTo("English");
+        assertThat(page.items().getFirst().averageRating()).isEqualTo(4.5);
     }
 
     private Movie movie(Long id, String title, ContentAccessLevel accessLevel) {
@@ -280,6 +333,12 @@ class ContentQueryServiceTest {
         ReflectionTestUtils.setField(genre, "createdAt", Instant.parse("2026-04-10T10:00:00Z"));
         ReflectionTestUtils.setField(genre, "updatedAt", Instant.parse("2026-04-10T10:00:00Z"));
         return genre;
+    }
+
+    private com.ott.streaming.entity.Review review(int rating) {
+        com.ott.streaming.entity.Review review = new com.ott.streaming.entity.Review();
+        review.setRating(rating);
+        return review;
     }
 
 }

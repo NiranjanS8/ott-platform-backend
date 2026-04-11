@@ -112,6 +112,7 @@ public class SubscriptionAdminService {
                 movie.getReleaseDate() == null ? null : movie.getReleaseDate().toString(),
                 movie.getDurationMinutes(),
                 movie.getMaturityRating(),
+                movie.getLanguage(),
                 movie.getAccessLevel(),
                 movie.getCreatedAt(),
                 movie.getUpdatedAt()
@@ -126,6 +127,7 @@ public class SubscriptionAdminService {
                 series.getReleaseDate() == null ? null : series.getReleaseDate().toString(),
                 series.getEndDate() == null ? null : series.getEndDate().toString(),
                 series.getMaturityRating(),
+                series.getLanguage(),
                 series.getAccessLevel(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()

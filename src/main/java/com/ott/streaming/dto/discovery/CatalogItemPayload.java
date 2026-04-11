@@ -11,6 +11,7 @@ public record CatalogItemPayload(
         String releaseDate,
         String endDate,
         String maturityRating,
+        String language,
         ContentAccessLevel accessLevel,
         Double averageRating
 ) {

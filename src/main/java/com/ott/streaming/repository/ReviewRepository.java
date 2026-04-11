@@ -11,4 +11,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Optional<Review> findByUserIdAndContentTypeAndContentId(Long userId, ContentType contentType, Long contentId);
 
     List<Review> findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType contentType, Long contentId);
+
+    List<Review> findByContentTypeAndContentId(ContentType contentType, Long contentId);
 }

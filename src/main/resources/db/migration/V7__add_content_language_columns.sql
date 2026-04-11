@@ -1,0 +1,5 @@
+ALTER TABLE movies
+    ADD COLUMN language VARCHAR(100);
+
+ALTER TABLE series
+    ADD COLUMN language VARCHAR(100);

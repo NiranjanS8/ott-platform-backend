@@ -278,6 +278,7 @@ public class ContentAdminService {
                 formatDate(movie.getReleaseDate()),
                 movie.getDurationMinutes(),
                 movie.getMaturityRating(),
+                movie.getLanguage(),
                 movie.getAccessLevel(),
                 movie.getCreatedAt(),
                 movie.getUpdatedAt()
@@ -292,6 +293,7 @@ public class ContentAdminService {
                 formatDate(series.getReleaseDate()),
                 formatDate(series.getEndDate()),
                 series.getMaturityRating(),
+                series.getLanguage(),
                 series.getAccessLevel(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()
@@ -329,6 +331,7 @@ public class ContentAdminService {
         movie.setReleaseDate(parseDate(input.releaseDate(), "movie release date"));
         movie.setDurationMinutes(input.durationMinutes());
         movie.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        movie.setLanguage(normalizeOptionalText(input.language()));
         if (movie.getAccessLevel() == null) {
             movie.setAccessLevel(ContentAccessLevel.FREE);
         }
@@ -343,6 +346,7 @@ public class ContentAdminService {
         movie.setReleaseDate(parseDate(input.releaseDate(), "movie release date"));
         movie.setDurationMinutes(input.durationMinutes());
         movie.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        movie.setLanguage(normalizeOptionalText(input.language()));
         if (movie.getAccessLevel() == null) {
             movie.setAccessLevel(ContentAccessLevel.FREE);
         }
@@ -357,6 +361,7 @@ public class ContentAdminService {
         series.setReleaseDate(parseDate(input.releaseDate(), "series release date"));
         series.setEndDate(parseDate(input.endDate(), "series end date"));
         series.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        series.setLanguage(normalizeOptionalText(input.language()));
         if (series.getAccessLevel() == null) {
             series.setAccessLevel(ContentAccessLevel.FREE);
         }
@@ -371,6 +376,7 @@ public class ContentAdminService {
         series.setReleaseDate(parseDate(input.releaseDate(), "series release date"));
         series.setEndDate(parseDate(input.endDate(), "series end date"));
         series.setMaturityRating(normalizeOptionalText(input.maturityRating()));
+        series.setLanguage(normalizeOptionalText(input.language()));
         if (series.getAccessLevel() == null) {
             series.setAccessLevel(ContentAccessLevel.FREE);
         }

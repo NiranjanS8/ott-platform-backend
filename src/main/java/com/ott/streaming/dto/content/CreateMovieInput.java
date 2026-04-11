@@ -13,6 +13,8 @@ public record CreateMovieInput(
         String releaseDate,
         Integer durationMinutes,
         String maturityRating,
+        @Size(max = 100, message = "Movie language must be at most 100 characters")
+        String language,
         @NotNull(message = "Genre ids are required")
         Set<Long> genreIds,
         @NotNull(message = "Cast ids are required")

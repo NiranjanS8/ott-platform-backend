@@ -57,6 +57,7 @@ type Movie {
   releaseDate: String
   durationMinutes: Int
   maturityRating: String
+  language: String
   genres: [Genre!]!
   cast: [Person!]!
   directors: [Person!]!
@@ -71,6 +72,7 @@ type Series {
   releaseDate: String
   endDate: String
   maturityRating: String
+  language: String
   genres: [Genre!]!
   cast: [Person!]!
   directors: [Person!]!
@@ -107,6 +109,7 @@ type CatalogItem {
   releaseDate: String
   endDate: String
   maturityRating: String
+  language: String
   accessLevel: ContentAccessLevel!
   averageRating: Float
 }
@@ -181,6 +184,7 @@ input CreateMovieInput {
   releaseDate: String
   durationMinutes: Int
   maturityRating: String
+  language: String
   genreIds: [ID!]!
   castIds: [ID!]!
   directorIds: [ID!]!
@@ -192,6 +196,7 @@ input UpdateMovieInput {
   releaseDate: String
   durationMinutes: Int
   maturityRating: String
+  language: String
   genreIds: [ID!]!
   castIds: [ID!]!
   directorIds: [ID!]!
@@ -203,6 +208,7 @@ input CreateSeriesInput {
   releaseDate: String
   endDate: String
   maturityRating: String
+  language: String
   genreIds: [ID!]!
   castIds: [ID!]!
   directorIds: [ID!]!
@@ -214,6 +220,7 @@ input UpdateSeriesInput {
   releaseDate: String
   endDate: String
   maturityRating: String
+  language: String
   genreIds: [ID!]!
   castIds: [ID!]!
   directorIds: [ID!]!

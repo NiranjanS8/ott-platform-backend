@@ -46,6 +46,9 @@ public class Series {
     @Column(name = "maturity_rating", length = 20)
     private String maturityRating;
 
+    @Column(length = 100)
+    private String language;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "access_level", nullable = false, length = 20)
     private ContentAccessLevel accessLevel;
@@ -144,6 +147,14 @@ public class Series {
 
     public void setMaturityRating(String maturityRating) {
         this.maturityRating = maturityRating;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public ContentAccessLevel getAccessLevel() {

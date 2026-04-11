@@ -106,6 +106,7 @@ class SubscriptionGraphQlControllerTest {
                         "1999-03-31",
                         136,
                         "R",
+                        "English",
                         ContentAccessLevel.PREMIUM,
                         Instant.parse("2026-04-11T10:00:00Z"),
                         Instant.parse("2026-04-11T10:00:00Z")

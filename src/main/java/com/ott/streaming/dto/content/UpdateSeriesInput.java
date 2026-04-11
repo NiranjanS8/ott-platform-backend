@@ -13,6 +13,8 @@ public record UpdateSeriesInput(
         String releaseDate,
         String endDate,
         String maturityRating,
+        @Size(max = 100, message = "Series language must be at most 100 characters")
+        String language,
         @NotNull(message = "Genre ids are required")
         Set<Long> genreIds,
         @NotNull(message = "Cast ids are required")

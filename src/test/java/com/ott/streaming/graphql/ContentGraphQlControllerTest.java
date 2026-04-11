@@ -108,7 +108,7 @@ class ContentGraphQlControllerTest {
     @WithMockUser(username = "admin@example.com", roles = "ADMIN")
     void createMovieReturnsPayloadForAdmin() {
         when(contentAdminService.createMovie(any())).thenReturn(
-                new MoviePayload(3L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                new MoviePayload(3L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R", "English",
                         ContentAccessLevel.FREE,
                         Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
         );
@@ -121,6 +121,7 @@ class ContentGraphQlControllerTest {
                     releaseDate: "1999-03-31"
                     durationMinutes: 136
                     maturityRating: "R"
+                    language: "English"
                     genreIds: ["1"]
                     castIds: ["2"]
                     directorIds: ["3"]
@@ -141,7 +142,7 @@ class ContentGraphQlControllerTest {
     @WithMockUser(username = "admin@example.com", roles = "ADMIN")
     void createSeriesReturnsPayloadForAdmin() {
         when(contentAdminService.createSeries(any())).thenReturn(
-                new SeriesPayload(4L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA",
+                new SeriesPayload(4L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA", "German",
                         ContentAccessLevel.FREE,
                         Instant.parse("2026-04-10T10:00:00Z"), Instant.parse("2026-04-10T10:00:00Z"))
         );
@@ -154,6 +155,7 @@ class ContentGraphQlControllerTest {
                     releaseDate: "2017-12-01"
                     endDate: "2020-06-27"
                     maturityRating: "TV-MA"
+                    language: "German"
                     genreIds: ["1"]
                     castIds: ["2"]
                     directorIds: ["3"]
@@ -240,6 +242,7 @@ class ContentGraphQlControllerTest {
                                         "1999-03-31",
                                         null,
                                         "R",
+                                        "English",
                                         ContentAccessLevel.FREE,
                                         null
                                 )
@@ -312,6 +315,7 @@ class ContentGraphQlControllerTest {
                                         "2021-02-10",
                                         null,
                                         "PG-13",
+                                        "English",
                                         ContentAccessLevel.PREMIUM,
                                         null
                                 )
@@ -348,5 +352,52 @@ class ContentGraphQlControllerTest {
                 .path("discoverCatalog.items[0].contentType").entity(String.class).isEqualTo("MOVIE")
                 .path("discoverCatalog.items[0].accessLevel").entity(String.class).isEqualTo("PREMIUM")
                 .path("discoverCatalog.pageInfo.totalElements").entity(Integer.class).isEqualTo(1);
+    }
+
+    @Test
+    void discoverCatalogAcceptsAdvancedFiltersAndSort() {
+        when(contentQueryService.discoverCatalog(any())).thenReturn(
+                new CatalogPagePayload(
+                        java.util.List.of(
+                                new CatalogItemPayload(
+                                        9L,
+                                        ContentType.MOVIE,
+                                        "Arrival",
+                                        "Sci-fi drama",
+                                        "2021-02-10",
+                                        null,
+                                        "PG-13",
+                                        "English",
+                                        ContentAccessLevel.FREE,
+                                        4.5
+                                )
+                        ),
+                        new PaginationInfoPayload(0, 10, 1, 1, false, false)
+                )
+        );
+
+        graphQlTester.document("""
+                query {
+                  discoverCatalog(input: {
+                    filter: {
+                      language: "English"
+                      minRating: 4.0
+                      maxRating: 5.0
+                    }
+                    sort: TOP_RATED
+                    pagination: { page: 0, size: 10 }
+                  }) {
+                    items {
+                      id
+                      language
+                      averageRating
+                    }
+                  }
+                }
+                """)
+                .execute()
+                .path("discoverCatalog.items[0].id").entity(String.class).isEqualTo("9")
+                .path("discoverCatalog.items[0].language").entity(String.class).isEqualTo("English")
+                .path("discoverCatalog.items[0].averageRating").entity(Double.class).isEqualTo(4.5);
     }
 }

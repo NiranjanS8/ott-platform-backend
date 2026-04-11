@@ -23,11 +23,13 @@ import com.ott.streaming.entity.Series;
 import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.MovieRepository;
+import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -42,17 +44,20 @@ public class ContentQueryService {
     private final SeriesRepository seriesRepository;
     private final SeasonRepository seasonRepository;
     private final EpisodeRepository episodeRepository;
+    private final ReviewRepository reviewRepository;
     private final UserSubscriptionService userSubscriptionService;
 
     public ContentQueryService(MovieRepository movieRepository,
                                SeriesRepository seriesRepository,
                                SeasonRepository seasonRepository,
                                EpisodeRepository episodeRepository,
+                               ReviewRepository reviewRepository,
                                UserSubscriptionService userSubscriptionService) {
         this.movieRepository = movieRepository;
         this.seriesRepository = seriesRepository;
         this.seasonRepository = seasonRepository;
         this.episodeRepository = episodeRepository;
+        this.reviewRepository = reviewRepository;
         this.userSubscriptionService = userSubscriptionService;
     }
 
@@ -122,6 +127,7 @@ public class ContentQueryService {
 
     public CatalogPagePayload discoverCatalog(CatalogQueryInput input) {
         List<CatalogItemPayload> items = buildCatalogItems(input.search(), input.filter()).stream()
+                .filter(item -> matchesRatingFilter(item, input.filter()))
                 .sorted(catalogComparator(input.sort()))
                 .toList();
 
@@ -227,14 +233,15 @@ public class ContentQueryService {
         List<Series> seriesList = normalizedSearch == null
                 ? seriesRepository.findAll()
                 : seriesRepository.findByTitleContainingIgnoreCase(normalizedSearch);
+        Map<ContentKey, Double> averageRatings = buildAverageRatings(movies, seriesList);
 
         return java.util.stream.Stream.concat(
                         movies.stream()
                                 .filter(movie -> matchesMovieFilter(movie, filter))
-                                .map(this::toCatalogMovieItem),
+                                .map(movie -> toCatalogMovieItem(movie, averageRatings)),
                         seriesList.stream()
                                 .filter(series -> matchesSeriesFilter(series, filter))
-                                .map(this::toCatalogSeriesItem)
+                                .map(series -> toCatalogSeriesItem(series, averageRatings))
                 )
                 .toList();
     }
@@ -252,6 +259,9 @@ public class ContentQueryService {
         }
         if (filter.releaseYear() != null
                 && (movie.getReleaseDate() == null || movie.getReleaseDate().getYear() != filter.releaseYear())) {
+            return false;
+        }
+        if (filter.language() != null && !matchesLanguage(movie.getLanguage(), filter.language())) {
             return false;
         }
         return filter.genreId() == null || movie.getGenres().stream()
@@ -274,12 +284,15 @@ public class ContentQueryService {
                 && (series.getReleaseDate() == null || series.getReleaseDate().getYear() != filter.releaseYear())) {
             return false;
         }
+        if (filter.language() != null && !matchesLanguage(series.getLanguage(), filter.language())) {
+            return false;
+        }
         return filter.genreId() == null || series.getGenres().stream()
                 .map(Genre::getId)
                 .anyMatch(filter.genreId()::equals);
     }
 
-    private CatalogItemPayload toCatalogMovieItem(Movie movie) {
+    private CatalogItemPayload toCatalogMovieItem(Movie movie, Map<ContentKey, Double> averageRatings) {
         return new CatalogItemPayload(
                 movie.getId(),
                 ContentType.MOVIE,
@@ -288,12 +301,13 @@ public class ContentQueryService {
                 formatDate(movie.getReleaseDate()),
                 null,
                 movie.getMaturityRating(),
+                movie.getLanguage(),
                 movie.getAccessLevel(),
-                null
+                averageRatings.get(new ContentKey(ContentType.MOVIE, movie.getId()))
         );
     }
 
-    private CatalogItemPayload toCatalogSeriesItem(Series series) {
+    private CatalogItemPayload toCatalogSeriesItem(Series series, Map<ContentKey, Double> averageRatings) {
         return new CatalogItemPayload(
                 series.getId(),
                 ContentType.SERIES,
@@ -302,8 +316,9 @@ public class ContentQueryService {
                 formatDate(series.getReleaseDate()),
                 formatDate(series.getEndDate()),
                 series.getMaturityRating(),
+                series.getLanguage(),
                 series.getAccessLevel(),
-                null
+                averageRatings.get(new ContentKey(ContentType.SERIES, series.getId()))
         );
     }
 
@@ -335,6 +350,45 @@ public class ContentQueryService {
         return normalized.isEmpty() ? null : normalized;
     }
 
+    private boolean matchesLanguage(String contentLanguage, String filterLanguage) {
+        return contentLanguage != null && contentLanguage.equalsIgnoreCase(filterLanguage.trim());
+    }
+
+    private boolean matchesRatingFilter(CatalogItemPayload item, CatalogFilterInput filter) {
+        if (filter == null) {
+            return true;
+        }
+        if (filter.minRating() != null
+                && (item.averageRating() == null || item.averageRating() < filter.minRating())) {
+            return false;
+        }
+        return filter.maxRating() == null
+                || (item.averageRating() != null && item.averageRating() <= filter.maxRating());
+    }
+
+    private Map<ContentKey, Double> buildAverageRatings(List<Movie> movies, List<Series> seriesList) {
+        Map<ContentKey, Double> ratings = new java.util.HashMap<>();
+        movies.forEach(movie -> ratings.put(
+                new ContentKey(ContentType.MOVIE, movie.getId()),
+                averageRating(ContentType.MOVIE, movie.getId())
+        ));
+        seriesList.forEach(series -> ratings.put(
+                new ContentKey(ContentType.SERIES, series.getId()),
+                averageRating(ContentType.SERIES, series.getId())
+        ));
+        return ratings;
+    }
+
+    private Double averageRating(ContentType contentType, Long contentId) {
+        return reviewRepository.findByContentTypeAndContentId(contentType, contentId).stream()
+                .mapToInt(review -> review.getRating())
+                .average()
+                .stream()
+                .boxed()
+                .findFirst()
+                .orElse(null);
+    }
+
     private String currentAuthenticatedEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()
@@ -360,6 +414,7 @@ public class ContentQueryService {
                 formatDate(movie.getReleaseDate()),
                 movie.getDurationMinutes(),
                 movie.getMaturityRating(),
+                movie.getLanguage(),
                 movie.getAccessLevel(),
                 movie.getCreatedAt(),
                 movie.getUpdatedAt()
@@ -374,6 +429,7 @@ public class ContentQueryService {
                 formatDate(series.getReleaseDate()),
                 formatDate(series.getEndDate()),
                 series.getMaturityRating(),
+                series.getLanguage(),
                 series.getAccessLevel(),
                 series.getCreatedAt(),
                 series.getUpdatedAt()
@@ -427,5 +483,8 @@ public class ContentQueryService {
 
     private String formatDate(LocalDate date) {
         return date == null ? null : date.toString();
+    }
+
+    private record ContentKey(ContentType contentType, Long contentId) {
     }
 }

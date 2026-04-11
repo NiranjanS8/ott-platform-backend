@@ -42,7 +42,7 @@ class ContentPublicGraphQlTest {
     @Test
     void moviesQueryReturnsList() {
         when(contentQueryService.getMovies()).thenReturn(List.of(
-                new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+                new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R", "English",
                         ContentAccessLevel.FREE,
                         now(), now())
         ));
@@ -64,7 +64,7 @@ class ContentPublicGraphQlTest {
 
     @Test
     void nestedMovieFieldsResolveRelationships() {
-        MoviePayload movie = new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R",
+        MoviePayload movie = new MoviePayload(1L, "The Matrix", "Sci-fi action film", "1999-03-31", 136, "R", "English",
                 ContentAccessLevel.FREE,
                 now(), now());
         when(contentQueryService.getMovieById(1L)).thenReturn(movie);
@@ -104,7 +104,7 @@ class ContentPublicGraphQlTest {
 
     @Test
     void nestedSeriesAndSeasonFieldsResolveRelationships() {
-        SeriesPayload series = new SeriesPayload(2L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA",
+        SeriesPayload series = new SeriesPayload(2L, "Dark", "Mystery series", "2017-12-01", "2020-06-27", "TV-MA", "German",
                 ContentAccessLevel.FREE,
                 now(), now());
         SeasonPayload season = new SeasonPayload(3L, 2L, "Season 1", 1, now(), now());

@@ -163,6 +163,7 @@ class ContentAdminServiceTest {
                 "1999-03-31",
                 136,
                 "R",
+                "  English  ",
                 Set.of(1L),
                 Set.of(2L),
                 Set.of(3L)
@@ -175,6 +176,7 @@ class ContentAdminServiceTest {
         assertThat(savedMovie.getTitle()).isEqualTo("The Matrix");
         assertThat(savedMovie.getDescription()).isEqualTo("Sci-fi action film");
         assertThat(savedMovie.getReleaseDate()).isEqualTo(LocalDate.parse("1999-03-31"));
+        assertThat(savedMovie.getLanguage()).isEqualTo("English");
         assertThat(savedMovie.getGenres()).containsExactly(genre);
         assertThat(savedMovie.getCast()).containsExactly(actor);
         assertThat(savedMovie.getDirectors()).containsExactly(director);
@@ -188,6 +190,7 @@ class ContentAdminServiceTest {
 
         assertThatThrownBy(() -> contentAdminService.createMovie(new CreateMovieInput(
                 "Movie",
+                null,
                 null,
                 null,
                 null,
@@ -206,6 +209,7 @@ class ContentAdminServiceTest {
 
         assertThatThrownBy(() -> contentAdminService.updateSeries(5L, new UpdateSeriesInput(
                 "Dark",
+                null,
                 null,
                 null,
                 null,
@@ -241,6 +245,7 @@ class ContentAdminServiceTest {
                 "2017-12-01",
                 "2020-06-27",
                 "TV-MA",
+                "  German  ",
                 Set.of(1L),
                 Set.of(2L),
                 Set.of(3L)
@@ -250,6 +255,7 @@ class ContentAdminServiceTest {
         assertThat(payload.title()).isEqualTo("Dark");
         assertThat(payload.releaseDate()).isEqualTo("2017-12-01");
         assertThat(payload.endDate()).isEqualTo("2020-06-27");
+        assertThat(payload.language()).isEqualTo("German");
     }
 
     private Genre genre(Long id, String name) {
