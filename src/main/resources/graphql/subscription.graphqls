@@ -1,0 +1,76 @@
+extend type Query {
+  currentSubscription: UserSubscription
+}
+
+extend type Mutation {
+  createSubscriptionPlan(input: CreateSubscriptionPlanInput!): SubscriptionPlan!
+  updateSubscriptionPlan(id: ID!, input: UpdateSubscriptionPlanInput!): SubscriptionPlan!
+  updateMovieAccessLevel(id: ID!, input: UpdateContentAccessInput!): Movie!
+  updateSeriesAccessLevel(id: ID!, input: UpdateContentAccessInput!): Series!
+  subscribeToPlan(input: SubscribeToPlanInput!): UserSubscription!
+}
+
+extend type Movie {
+  accessLevel: ContentAccessLevel!
+}
+
+extend type Series {
+  accessLevel: ContentAccessLevel!
+}
+
+type SubscriptionPlan {
+  id: ID!
+  name: String!
+  description: String
+  price: Float!
+  durationDays: Int!
+  active: Boolean!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type UserSubscription {
+  id: ID!
+  userId: ID!
+  planId: ID!
+  status: SubscriptionStatus!
+  startDate: String!
+  endDate: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum ContentAccessLevel {
+  FREE
+  PREMIUM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+input CreateSubscriptionPlanInput {
+  name: String!
+  description: String
+  price: Float!
+  durationDays: Int!
+  active: Boolean!
+}
+
+input UpdateSubscriptionPlanInput {
+  name: String!
+  description: String
+  price: Float!
+  durationDays: Int!
+  active: Boolean!
+}
+
+input SubscribeToPlanInput {
+  planId: ID!
+}
+
+input UpdateContentAccessInput {
+  accessLevel: ContentAccessLevel!
+}
