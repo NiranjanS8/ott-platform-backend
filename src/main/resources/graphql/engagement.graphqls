@@ -5,6 +5,8 @@ extend type Query {
 extend type Mutation {
   addToWatchlist(input: AddToWatchlistInput!): WatchlistItem!
   removeFromWatchlist(contentType: ContentType!, contentId: ID!): Boolean!
+  updateWatchProgress(input: UpdateWatchProgressInput!): WatchProgress!
+  markAsCompleted(contentType: ContentType!, contentId: ID!, episodeId: ID): WatchProgress!
 }
 
 type WatchlistItem {
@@ -16,7 +18,31 @@ type WatchlistItem {
   updatedAt: String!
 }
 
+type WatchProgress {
+  id: ID!
+  userId: ID!
+  contentType: ContentType!
+  contentId: ID!
+  seasonId: ID
+  episodeId: ID
+  progressSeconds: Int!
+  durationSeconds: Int!
+  completed: Boolean!
+  lastWatchedAt: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
 input AddToWatchlistInput {
   contentType: ContentType!
   contentId: ID!
+}
+
+input UpdateWatchProgressInput {
+  contentType: ContentType!
+  contentId: ID!
+  seasonId: ID
+  episodeId: ID
+  progressSeconds: Int!
+  durationSeconds: Int!
 }
