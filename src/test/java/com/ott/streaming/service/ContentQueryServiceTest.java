@@ -59,6 +59,9 @@ class ContentQueryServiceTest {
     @Mock
     private UserSubscriptionService userSubscriptionService;
 
+    @Mock
+    private ContentReadCacheService contentReadCacheService;
+
     private ContentQueryService contentQueryService;
 
     @BeforeEach
@@ -69,7 +72,8 @@ class ContentQueryServiceTest {
                 seasonRepository,
                 episodeRepository,
                 reviewRepository,
-                userSubscriptionService
+                userSubscriptionService,
+                contentReadCacheService
         );
     }
 
@@ -77,7 +81,32 @@ class ContentQueryServiceTest {
     void getMoviesReturnsPremiumAndFreeMetadataWithoutSubscriptionFilter() {
         Movie freeMovie = movie(1L, "Free Movie", ContentAccessLevel.FREE);
         Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
-        when(movieRepository.findAll()).thenReturn(List.of(freeMovie, premiumMovie));
+        when(contentReadCacheService.getMovies()).thenReturn(List.of(
+                new MoviePayload(
+                        freeMovie.getId(),
+                        freeMovie.getTitle(),
+                        freeMovie.getDescription(),
+                        freeMovie.getReleaseDate().toString(),
+                        freeMovie.getDurationMinutes(),
+                        freeMovie.getMaturityRating(),
+                        freeMovie.getLanguage(),
+                        freeMovie.getAccessLevel(),
+                        freeMovie.getCreatedAt(),
+                        freeMovie.getUpdatedAt()
+                ),
+                new MoviePayload(
+                        premiumMovie.getId(),
+                        premiumMovie.getTitle(),
+                        premiumMovie.getDescription(),
+                        premiumMovie.getReleaseDate().toString(),
+                        premiumMovie.getDurationMinutes(),
+                        premiumMovie.getMaturityRating(),
+                        premiumMovie.getLanguage(),
+                        premiumMovie.getAccessLevel(),
+                        premiumMovie.getCreatedAt(),
+                        premiumMovie.getUpdatedAt()
+                )
+        ));
 
         List<MoviePayload> payloads = contentQueryService.getMovies();
 
@@ -88,7 +117,18 @@ class ContentQueryServiceTest {
     @Test
     void getMovieByIdBlocksPremiumContentWithoutSubscription() {
         Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
-        when(movieRepository.findById(2L)).thenReturn(Optional.of(premiumMovie));
+        when(contentReadCacheService.getMovieById(2L)).thenReturn(new MoviePayload(
+                premiumMovie.getId(),
+                premiumMovie.getTitle(),
+                premiumMovie.getDescription(),
+                premiumMovie.getReleaseDate().toString(),
+                premiumMovie.getDurationMinutes(),
+                premiumMovie.getMaturityRating(),
+                premiumMovie.getLanguage(),
+                premiumMovie.getAccessLevel(),
+                premiumMovie.getCreatedAt(),
+                premiumMovie.getUpdatedAt()
+        ));
         when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
 
         assertThatThrownBy(() -> contentQueryService.getMovieById(null, 2L))
@@ -99,7 +139,18 @@ class ContentQueryServiceTest {
     @Test
     void getMovieByIdAllowsPremiumContentWithSubscription() {
         Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
-        when(movieRepository.findById(2L)).thenReturn(Optional.of(premiumMovie));
+        when(contentReadCacheService.getMovieById(2L)).thenReturn(new MoviePayload(
+                premiumMovie.getId(),
+                premiumMovie.getTitle(),
+                premiumMovie.getDescription(),
+                premiumMovie.getReleaseDate().toString(),
+                premiumMovie.getDurationMinutes(),
+                premiumMovie.getMaturityRating(),
+                premiumMovie.getLanguage(),
+                premiumMovie.getAccessLevel(),
+                premiumMovie.getCreatedAt(),
+                premiumMovie.getUpdatedAt()
+        ));
         when(userSubscriptionService.hasPremiumAccess("member@example.com")).thenReturn(true);
 
         MoviePayload payload = contentQueryService.getMovieById("member@example.com", 2L);

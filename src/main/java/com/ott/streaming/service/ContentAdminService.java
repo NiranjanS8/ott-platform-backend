@@ -1,5 +1,6 @@
 package com.ott.streaming.service;
 
+import com.ott.streaming.config.CacheNames;
 import com.ott.streaming.dto.content.CreateGenreInput;
 import com.ott.streaming.dto.content.CreateMovieInput;
 import com.ott.streaming.dto.content.CreatePersonInput;
@@ -37,6 +38,8 @@ import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -133,6 +136,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIE_BY_ID, allEntries = true)
+    })
     public MoviePayload createMovie(CreateMovieInput input) {
         Movie movie = new Movie();
         applyMovieInput(movie, input);
@@ -140,6 +147,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIE_BY_ID, key = "#id")
+    })
     public MoviePayload updateMovie(Long id, UpdateMovieInput input) {
         Movie movie = movieRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Movie not found"));
@@ -149,6 +160,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIE_BY_ID, key = "#id")
+    })
     public boolean deleteMovie(Long id) {
         if (!movieRepository.existsById(id)) {
             throw ApiException.notFound("Movie not found");
@@ -159,6 +174,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES_BY_ID, allEntries = true)
+    })
     public SeriesPayload createSeries(CreateSeriesInput input) {
         Series series = new Series();
         applySeriesInput(series, input);
@@ -166,6 +185,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES_BY_ID, key = "#id")
+    })
     public SeriesPayload updateSeries(Long id, UpdateSeriesInput input) {
         Series series = seriesRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Series not found"));
@@ -175,6 +198,10 @@ public class ContentAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES_BY_ID, key = "#id")
+    })
     public boolean deleteSeries(Long id) {
         if (!seriesRepository.existsById(id)) {
             throw ApiException.notFound("Series not found");

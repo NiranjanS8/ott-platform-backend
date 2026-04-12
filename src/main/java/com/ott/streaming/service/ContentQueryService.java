@@ -49,25 +49,26 @@ public class ContentQueryService {
     private final EpisodeRepository episodeRepository;
     private final ReviewRepository reviewRepository;
     private final UserSubscriptionService userSubscriptionService;
+    private final ContentReadCacheService contentReadCacheService;
 
     public ContentQueryService(MovieRepository movieRepository,
                                SeriesRepository seriesRepository,
                                SeasonRepository seasonRepository,
                                EpisodeRepository episodeRepository,
                                ReviewRepository reviewRepository,
-                               UserSubscriptionService userSubscriptionService) {
+                               UserSubscriptionService userSubscriptionService,
+                               ContentReadCacheService contentReadCacheService) {
         this.movieRepository = movieRepository;
         this.seriesRepository = seriesRepository;
         this.seasonRepository = seasonRepository;
         this.episodeRepository = episodeRepository;
         this.reviewRepository = reviewRepository;
         this.userSubscriptionService = userSubscriptionService;
+        this.contentReadCacheService = contentReadCacheService;
     }
 
     public List<MoviePayload> getMovies() {
-        return movieRepository.findAll().stream()
-                .map(this::toMoviePayload)
-                .toList();
+        return contentReadCacheService.getMovies();
     }
 
     public MoviePayload getMovieById(Long id) {
@@ -75,18 +76,17 @@ public class ContentQueryService {
     }
 
     public MoviePayload getMovieById(String email, Long id) {
-        return movieRepository.findById(id)
-                .map(movie -> {
-                    enforceContentAccess(email, movie.getAccessLevel());
-                    return toMoviePayload(movie);
-                })
-                .orElse(null);
+        MoviePayload movie = contentReadCacheService.getMovieById(id);
+        if (movie == null) {
+            return null;
+        }
+
+        enforceContentAccess(email, movie.accessLevel());
+        return movie;
     }
 
     public List<SeriesPayload> getSeriesList() {
-        return seriesRepository.findAll().stream()
-                .map(this::toSeriesPayload)
-                .toList();
+        return contentReadCacheService.getSeriesList();
     }
 
     public SeriesPayload getSeriesById(Long id) {
@@ -94,12 +94,13 @@ public class ContentQueryService {
     }
 
     public SeriesPayload getSeriesById(String email, Long id) {
-        return seriesRepository.findById(id)
-                .map(series -> {
-                    enforceContentAccess(email, series.getAccessLevel());
-                    return toSeriesPayload(series);
-                })
-                .orElse(null);
+        SeriesPayload series = contentReadCacheService.getSeriesById(id);
+        if (series == null) {
+            return null;
+        }
+
+        enforceContentAccess(email, series.accessLevel());
+        return series;
     }
 
     public SeasonPayload getSeasonById(Long id) {

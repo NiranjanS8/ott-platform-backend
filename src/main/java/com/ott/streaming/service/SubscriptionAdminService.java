@@ -1,5 +1,6 @@
 package com.ott.streaming.service;
 
+import com.ott.streaming.config.CacheNames;
 import com.ott.streaming.dto.content.MoviePayload;
 import com.ott.streaming.dto.content.SeriesPayload;
 import com.ott.streaming.dto.subscription.CreateSubscriptionPlanInput;
@@ -14,6 +15,8 @@ import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.SubscriptionPlanRepository;
 import java.util.Locale;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
@@ -61,6 +64,10 @@ public class SubscriptionAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_MOVIE_BY_ID, key = "#id")
+    })
     public MoviePayload updateMovieAccessLevel(Long id, UpdateContentAccessInput input) {
         Movie movie = movieRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Movie not found"));
@@ -70,6 +77,10 @@ public class SubscriptionAdminService {
     }
 
     @PreAuthorize("hasRole('ADMIN')")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES, allEntries = true),
+            @CacheEvict(cacheNames = CacheNames.CONTENT_SERIES_BY_ID, key = "#id")
+    })
     public SeriesPayload updateSeriesAccessLevel(Long id, UpdateContentAccessInput input) {
         Series series = seriesRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("Series not found"));
