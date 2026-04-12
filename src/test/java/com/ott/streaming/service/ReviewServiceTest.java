@@ -190,7 +190,7 @@ class ReviewServiceTest {
     @Test
     void getMovieRatingSummaryCalculatesAverageAndCount() {
         when(movieRepository.existsById(42L)).thenReturn(true);
-        when(reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType.MOVIE, 42L))
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(42L)))
                 .thenReturn(List.of(
                         buildReview(1L, 20L, ContentType.MOVIE, 42L, 5),
                         buildReview(2L, 21L, ContentType.MOVIE, 42L, 3),
@@ -206,7 +206,7 @@ class ReviewServiceTest {
     @Test
     void getSeriesRatingSummaryReturnsEmptySummaryWhenNoReviewsExist() {
         when(seriesRepository.existsById(77L)).thenReturn(true);
-        when(reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(ContentType.SERIES, 77L))
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.SERIES, List.of(77L)))
                 .thenReturn(List.of());
 
         RatingSummaryPayload summary = reviewService.getSeriesRatingSummary(77L);

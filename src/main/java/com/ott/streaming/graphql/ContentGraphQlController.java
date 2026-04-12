@@ -23,7 +23,9 @@ import com.ott.streaming.dto.discovery.CatalogQueryInput;
 import com.ott.streaming.service.ContentAdminService;
 import com.ott.streaming.service.ContentQueryService;
 import jakarta.validation.Valid;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
+import org.dataloader.DataLoader;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -169,42 +171,66 @@ public class ContentGraphQlController {
     }
 
     @SchemaMapping(typeName = "Movie", field = "genres")
-    public List<GenrePayload> movieGenres(MoviePayload source) {
-        return contentQueryService.getMovieGenres(source);
+    public CompletableFuture<List<GenrePayload>> movieGenres(
+            MoviePayload source,
+            DataLoader<Long, List<GenrePayload>> movieGenresDataLoader
+    ) {
+        return movieGenresDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Movie", field = "cast")
-    public List<PersonPayload> movieCast(MoviePayload source) {
-        return contentQueryService.getMovieCast(source);
+    public CompletableFuture<List<PersonPayload>> movieCast(
+            MoviePayload source,
+            DataLoader<Long, List<PersonPayload>> movieCastDataLoader
+    ) {
+        return movieCastDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Movie", field = "directors")
-    public List<PersonPayload> movieDirectors(MoviePayload source) {
-        return contentQueryService.getMovieDirectors(source);
+    public CompletableFuture<List<PersonPayload>> movieDirectors(
+            MoviePayload source,
+            DataLoader<Long, List<PersonPayload>> movieDirectorsDataLoader
+    ) {
+        return movieDirectorsDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "genres")
-    public List<GenrePayload> seriesGenres(SeriesPayload source) {
-        return contentQueryService.getSeriesGenres(source);
+    public CompletableFuture<List<GenrePayload>> seriesGenres(
+            SeriesPayload source,
+            DataLoader<Long, List<GenrePayload>> seriesGenresDataLoader
+    ) {
+        return seriesGenresDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "cast")
-    public List<PersonPayload> seriesCast(SeriesPayload source) {
-        return contentQueryService.getSeriesCast(source);
+    public CompletableFuture<List<PersonPayload>> seriesCast(
+            SeriesPayload source,
+            DataLoader<Long, List<PersonPayload>> seriesCastDataLoader
+    ) {
+        return seriesCastDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "directors")
-    public List<PersonPayload> seriesDirectors(SeriesPayload source) {
-        return contentQueryService.getSeriesDirectors(source);
+    public CompletableFuture<List<PersonPayload>> seriesDirectors(
+            SeriesPayload source,
+            DataLoader<Long, List<PersonPayload>> seriesDirectorsDataLoader
+    ) {
+        return seriesDirectorsDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "seasons")
-    public List<SeasonPayload> seriesSeasons(SeriesPayload source) {
-        return contentQueryService.getSeriesSeasons(source);
+    public CompletableFuture<List<SeasonPayload>> seriesSeasons(
+            SeriesPayload source,
+            DataLoader<Long, List<SeasonPayload>> seriesSeasonsDataLoader
+    ) {
+        return seriesSeasonsDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Season", field = "episodes")
-    public List<EpisodePayload> seasonEpisodes(SeasonPayload source) {
-        return contentQueryService.getSeasonEpisodes(source);
+    public CompletableFuture<List<EpisodePayload>> seasonEpisodes(
+            SeasonPayload source,
+            DataLoader<Long, List<EpisodePayload>> seasonEpisodesDataLoader
+    ) {
+        return seasonEpisodesDataLoader.load(source.id());
     }
 }

@@ -10,6 +10,8 @@ import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.service.ReviewService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.dataloader.DataLoader;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -52,12 +54,18 @@ public class ReviewGraphQlController {
     }
 
     @SchemaMapping(typeName = "Movie", field = "ratingSummary")
-    public RatingSummaryPayload movieRatingSummary(MoviePayload source) {
-        return reviewService.getMovieRatingSummary(source.id());
+    public CompletableFuture<RatingSummaryPayload> movieRatingSummary(
+            MoviePayload source,
+            DataLoader<Long, RatingSummaryPayload> movieRatingSummaryDataLoader
+    ) {
+        return movieRatingSummaryDataLoader.load(source.id());
     }
 
     @SchemaMapping(typeName = "Series", field = "ratingSummary")
-    public RatingSummaryPayload seriesRatingSummary(SeriesPayload source) {
-        return reviewService.getSeriesRatingSummary(source.id());
+    public CompletableFuture<RatingSummaryPayload> seriesRatingSummary(
+            SeriesPayload source,
+            DataLoader<Long, RatingSummaryPayload> seriesRatingSummaryDataLoader
+    ) {
+        return seriesRatingSummaryDataLoader.load(source.id());
     }
 }

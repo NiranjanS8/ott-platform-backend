@@ -13,9 +13,11 @@ import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.UserRepository;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import org.springframework.graphql.execution.ErrorType;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -92,12 +94,20 @@ public class ReviewService {
 
     public RatingSummaryPayload getMovieRatingSummary(Long movieId) {
         validateContentExists(ContentType.MOVIE, movieId);
-        return buildRatingSummary(ContentType.MOVIE, movieId);
+        return getMovieRatingSummariesByMovieIds(List.of(movieId)).get(movieId);
     }
 
     public RatingSummaryPayload getSeriesRatingSummary(Long seriesId) {
         validateContentExists(ContentType.SERIES, seriesId);
-        return buildRatingSummary(ContentType.SERIES, seriesId);
+        return getSeriesRatingSummariesBySeriesIds(List.of(seriesId)).get(seriesId);
+    }
+
+    public Map<Long, RatingSummaryPayload> getMovieRatingSummariesByMovieIds(Collection<Long> movieIds) {
+        return buildRatingSummaries(ContentType.MOVIE, movieIds);
+    }
+
+    public Map<Long, RatingSummaryPayload> getSeriesRatingSummariesBySeriesIds(Collection<Long> seriesIds) {
+        return buildRatingSummaries(ContentType.SERIES, seriesIds);
     }
 
     private User getAuthenticatedUser(String email) {
@@ -143,8 +153,21 @@ public class ReviewService {
         );
     }
 
-    private RatingSummaryPayload buildRatingSummary(ContentType contentType, Long contentId) {
-        List<Review> reviews = reviewRepository.findByContentTypeAndContentIdOrderByCreatedAtDesc(contentType, contentId);
+    private Map<Long, RatingSummaryPayload> buildRatingSummaries(ContentType contentType, Collection<Long> contentIds) {
+        Map<Long, List<Review>> reviewsByContentId = new LinkedHashMap<>();
+        contentIds.forEach(id -> reviewsByContentId.put(id, new java.util.ArrayList<>()));
+
+        reviewRepository.findByContentTypeAndContentIdIn(contentType, contentIds)
+                .forEach(review -> reviewsByContentId
+                        .computeIfAbsent(review.getContentId(), ignored -> new java.util.ArrayList<>())
+                        .add(review));
+
+        Map<Long, RatingSummaryPayload> summaries = new LinkedHashMap<>();
+        reviewsByContentId.forEach((contentId, reviews) -> summaries.put(contentId, buildRatingSummary(reviews)));
+        return summaries;
+    }
+
+    private RatingSummaryPayload buildRatingSummary(List<Review> reviews) {
         if (reviews.isEmpty()) {
             return new RatingSummaryPayload(null, 0);
         }

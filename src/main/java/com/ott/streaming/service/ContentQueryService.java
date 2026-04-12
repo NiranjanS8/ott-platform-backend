@@ -29,10 +29,11 @@ import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.spec.MovieSpecifications;
 import com.ott.streaming.repository.spec.SeriesSpecifications;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.graphql.execution.ErrorType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -154,67 +155,73 @@ public class ContentQueryService {
     }
 
     public List<GenrePayload> getMovieGenres(MoviePayload source) {
-        return movieRepository.findById(source.id())
-                .stream()
-                .flatMap(movie -> movie.getGenres().stream())
-                .map(this::toGenrePayload)
-                .toList();
+        return getMovieGenresByMovieIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<PersonPayload> getMovieCast(MoviePayload source) {
-        return movieRepository.findById(source.id())
-                .stream()
-                .flatMap(movie -> movie.getCast().stream())
-                .map(this::toPersonPayload)
-                .toList();
+        return getMovieCastByMovieIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<PersonPayload> getMovieDirectors(MoviePayload source) {
-        return movieRepository.findById(source.id())
-                .stream()
-                .flatMap(movie -> movie.getDirectors().stream())
-                .map(this::toPersonPayload)
-                .toList();
+        return getMovieDirectorsByMovieIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<GenrePayload> getSeriesGenres(SeriesPayload source) {
-        return seriesRepository.findById(source.id())
-                .stream()
-                .flatMap(series -> series.getGenres().stream())
-                .map(this::toGenrePayload)
-                .toList();
+        return getSeriesGenresBySeriesIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<PersonPayload> getSeriesCast(SeriesPayload source) {
-        return seriesRepository.findById(source.id())
-                .stream()
-                .flatMap(series -> series.getCast().stream())
-                .map(this::toPersonPayload)
-                .toList();
+        return getSeriesCastBySeriesIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<PersonPayload> getSeriesDirectors(SeriesPayload source) {
-        return seriesRepository.findById(source.id())
-                .stream()
-                .flatMap(series -> series.getDirectors().stream())
-                .map(this::toPersonPayload)
-                .toList();
+        return getSeriesDirectorsBySeriesIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<SeasonPayload> getSeriesSeasons(SeriesPayload source) {
-        return seriesRepository.findById(source.id())
-                .stream()
-                .flatMap(series -> series.getSeasons().stream())
-                .map(this::toSeasonPayload)
-                .toList();
+        return getSeriesSeasonsBySeriesIds(List.of(source.id())).getOrDefault(source.id(), List.of());
     }
 
     public List<EpisodePayload> getSeasonEpisodes(SeasonPayload source) {
-        return seasonRepository.findById(source.id())
-                .stream()
-                .flatMap(season -> season.getEpisodes().stream())
-                .map(this::toEpisodePayload)
-                .toList();
+        return getSeasonEpisodesBySeasonIds(List.of(source.id())).getOrDefault(source.id(), List.of());
+    }
+
+    public Map<Long, List<GenrePayload>> getMovieGenresByMovieIds(Collection<Long> movieIds) {
+        return loadMovies(movieIds, Movie::getGenres, this::toGenrePayload);
+    }
+
+    public Map<Long, List<PersonPayload>> getMovieCastByMovieIds(Collection<Long> movieIds) {
+        return loadMovies(movieIds, Movie::getCast, this::toPersonPayload);
+    }
+
+    public Map<Long, List<PersonPayload>> getMovieDirectorsByMovieIds(Collection<Long> movieIds) {
+        return loadMovies(movieIds, Movie::getDirectors, this::toPersonPayload);
+    }
+
+    public Map<Long, List<GenrePayload>> getSeriesGenresBySeriesIds(Collection<Long> seriesIds) {
+        return loadSeries(seriesIds, Series::getGenres, this::toGenrePayload);
+    }
+
+    public Map<Long, List<PersonPayload>> getSeriesCastBySeriesIds(Collection<Long> seriesIds) {
+        return loadSeries(seriesIds, Series::getCast, this::toPersonPayload);
+    }
+
+    public Map<Long, List<PersonPayload>> getSeriesDirectorsBySeriesIds(Collection<Long> seriesIds) {
+        return loadSeries(seriesIds, Series::getDirectors, this::toPersonPayload);
+    }
+
+    public Map<Long, List<SeasonPayload>> getSeriesSeasonsBySeriesIds(Collection<Long> seriesIds) {
+        Map<Long, List<SeasonPayload>> seasonsBySeriesId = initializeListMap(seriesIds);
+        seasonRepository.findBySeriesIdInOrderBySeasonNumberAsc(seriesIds)
+                .forEach(season -> seasonsBySeriesId.get(season.getSeries().getId()).add(toSeasonPayload(season)));
+        return seasonsBySeriesId;
+    }
+
+    public Map<Long, List<EpisodePayload>> getSeasonEpisodesBySeasonIds(Collection<Long> seasonIds) {
+        Map<Long, List<EpisodePayload>> episodesBySeasonId = initializeListMap(seasonIds);
+        episodeRepository.findBySeasonIdInOrderByEpisodeNumberAsc(seasonIds)
+                .forEach(episode -> episodesBySeasonId.get(episode.getSeason().getId()).add(toEpisodePayload(episode)));
+        return episodesBySeasonId;
     }
 
     private void enforceContentAccess(String email, ContentAccessLevel accessLevel) {
@@ -345,6 +352,34 @@ public class ContentQueryService {
 
     private boolean shouldIncludeSeries(CatalogFilterInput filter) {
         return filter == null || filter.contentType() == null || filter.contentType() == ContentType.SERIES;
+    }
+
+    private <R, T> Map<Long, List<T>> loadMovies(Collection<Long> movieIds,
+                                                 java.util.function.Function<Movie, java.util.Collection<R>> relationExtractor,
+                                                 java.util.function.Function<R, T> mapper) {
+        Map<Long, List<T>> valuesByMovieId = initializeListMap(movieIds);
+        movieRepository.findByIdIn(movieIds).forEach(movie ->
+                relationExtractor.apply(movie).forEach(value ->
+                        valuesByMovieId.get(movie.getId()).add(mapper.apply(value)))
+        );
+        return valuesByMovieId;
+    }
+
+    private <R, T> Map<Long, List<T>> loadSeries(Collection<Long> seriesIds,
+                                                 java.util.function.Function<Series, java.util.Collection<R>> relationExtractor,
+                                                 java.util.function.Function<R, T> mapper) {
+        Map<Long, List<T>> valuesBySeriesId = initializeListMap(seriesIds);
+        seriesRepository.findByIdIn(seriesIds).forEach(series ->
+                relationExtractor.apply(series).forEach(value ->
+                        valuesBySeriesId.get(series.getId()).add(mapper.apply(value)))
+        );
+        return valuesBySeriesId;
+    }
+
+    private <T> Map<Long, List<T>> initializeListMap(Collection<Long> ids) {
+        Map<Long, List<T>> values = new LinkedHashMap<>();
+        ids.forEach(id -> values.put(id, new java.util.ArrayList<>()));
+        return values;
     }
 
     private String currentAuthenticatedEmail() {
