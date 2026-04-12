@@ -36,6 +36,9 @@ management:
 app:
   name: OTT Streaming Backend
   environment: ${APP_ENV:local}
+  graphql:
+    max-query-depth: ${GRAPHQL_MAX_QUERY_DEPTH:8}
+    log-requests: ${GRAPHQL_LOG_REQUESTS:true}
 
 security:
   jwt:
