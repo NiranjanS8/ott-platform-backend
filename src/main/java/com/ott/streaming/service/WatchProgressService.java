@@ -67,6 +67,7 @@ public class WatchProgressService {
         User currentUser = getAuthenticatedUser(email);
         WatchProgress progress = findExistingProgress(currentUser.getId(), contentType, contentId, episodeId)
                 .orElseThrow(() -> new ApiException("Watch progress not found", ErrorType.NOT_FOUND));
+                
 
         progress.setProgressSeconds(progress.getDurationSeconds());
         progress.setCompleted(true);
@@ -95,16 +96,16 @@ public class WatchProgressService {
 
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
-            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Authentication is required");
         }
 
         return userRepository.findByEmail(normalizeEmail(email))
-                .orElseThrow(() -> new ApiException("Authenticated user not found", ErrorType.UNAUTHORIZED));
+                .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
     }
 
     private void validateProgressInput(UpdateWatchProgressInput input) {
         if (input.progressSeconds() > input.durationSeconds()) {
-            throw new ApiException("Progress seconds cannot exceed duration seconds");
+            throw ApiException.validation("Progress seconds cannot exceed duration seconds");
         }
 
         switch (input.contentType()) {
@@ -115,29 +116,29 @@ public class WatchProgressService {
 
     private void validateMovieProgress(UpdateWatchProgressInput input) {
         if (!movieRepository.existsById(input.contentId())) {
-            throw new ApiException("Movie not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound("Movie not found");
         }
 
         if (input.seasonId() != null || input.episodeId() != null) {
-            throw new ApiException("Movie progress cannot include season or episode context");
+            throw ApiException.validation("Movie progress cannot include season or episode context");
         }
     }
 
     private void validateSeriesProgress(UpdateWatchProgressInput input) {
         if (!seriesRepository.existsById(input.contentId())) {
-            throw new ApiException("Series not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound("Series not found");
         }
 
         if (input.episodeId() == null) {
-            throw new ApiException("Series progress requires an episode id");
+            throw ApiException.validation("Series progress requires an episode id");
         }
 
         if (!episodeRepository.existsById(input.episodeId())) {
-            throw new ApiException("Episode not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound("Episode not found");
         }
 
         if (input.seasonId() != null && !seasonRepository.existsById(input.seasonId())) {
-            throw new ApiException("Season not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound("Season not found");
         }
     }
 

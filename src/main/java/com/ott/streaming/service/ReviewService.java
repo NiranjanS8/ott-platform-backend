@@ -46,7 +46,7 @@ public class ReviewService {
                         input.contentId()
                 )
                 .ifPresent(existingReview -> {
-                    throw new ApiException("You have already reviewed this content");
+                    throw ApiException.duplicateResource("You have already reviewed this content");
                 });
 
         Review review = new Review();
@@ -62,7 +62,7 @@ public class ReviewService {
     public ReviewPayload updateReview(String email, Long id, UpdateReviewInput input) {
         User currentUser = getAuthenticatedUser(email);
         Review review = reviewRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Review not found", ErrorType.NOT_FOUND));
+                .orElseThrow(() -> ApiException.notFound("Review not found"));
 
         validateCanModifyReview(currentUser, review);
 
@@ -75,7 +75,7 @@ public class ReviewService {
     public Boolean deleteReview(String email, Long id) {
         User currentUser = getAuthenticatedUser(email);
         Review review = reviewRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Review not found", ErrorType.NOT_FOUND));
+                .orElseThrow(() -> ApiException.notFound("Review not found"));
 
         validateCanModifyReview(currentUser, review);
         reviewRepository.delete(review);
@@ -102,11 +102,11 @@ public class ReviewService {
 
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
-            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Authentication is required");
         }
 
         return userRepository.findByEmail(normalizeEmail(email))
-                .orElseThrow(() -> new ApiException("Authenticated user not found", ErrorType.UNAUTHORIZED));
+                .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
     }
 
     private void validateContentExists(ContentType contentType, Long contentId) {
@@ -117,7 +117,7 @@ public class ReviewService {
 
         if (!exists) {
             String label = contentType == ContentType.MOVIE ? "Movie" : "Series";
-            throw new ApiException(label + " not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound(label + " not found");
         }
     }
 
@@ -126,7 +126,7 @@ public class ReviewService {
         boolean isAdmin = currentUser.getRole() == Role.ADMIN;
 
         if (!isOwner && !isAdmin) {
-            throw new ApiException("You are not allowed to modify this review", ErrorType.FORBIDDEN);
+            throw ApiException.forbidden("You are not allowed to modify this review");
         }
     }
 

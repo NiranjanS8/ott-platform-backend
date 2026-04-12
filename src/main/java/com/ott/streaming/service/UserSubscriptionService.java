@@ -35,10 +35,10 @@ public class UserSubscriptionService {
     public UserSubscriptionPayload subscribeToPlan(String email, SubscribeToPlanInput input) {
         User currentUser = getAuthenticatedUser(email);
         SubscriptionPlan plan = subscriptionPlanRepository.findById(input.planId())
-                .orElseThrow(() -> new ApiException("Subscription plan not found", ErrorType.NOT_FOUND));
+                .orElseThrow(() -> ApiException.notFound("Subscription plan not found"));
 
         if (!plan.isActive()) {
-            throw new ApiException("Subscription plan is not active");
+            throw ApiException.validation("Subscription plan is not active");
         }
 
         closeExistingActiveSubscription(currentUser.getId());
@@ -109,11 +109,11 @@ public class UserSubscriptionService {
 
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
-            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Authentication is required");
         }
 
         return userRepository.findByEmail(normalizeEmail(email))
-                .orElseThrow(() -> new ApiException("Authenticated user not found", ErrorType.UNAUTHORIZED));
+                .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
     }
 
     private UserSubscriptionPayload toPayload(UserSubscription subscription) {

@@ -1,6 +1,7 @@
 package com.ott.streaming.dto.subscription;
 
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,6 +16,7 @@ public record UpdateSubscriptionPlanInput(
         @DecimalMin(value = "0.0", inclusive = true, message = "Price must be at least 0")
         BigDecimal price,
         @NotNull(message = "Duration days are required")
+        @Min(value = 1, message = "Duration days must be at least 1")
         Integer durationDays,
         @NotNull(message = "Active flag is required")
         Boolean active

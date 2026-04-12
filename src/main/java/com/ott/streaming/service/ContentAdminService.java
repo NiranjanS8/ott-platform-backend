@@ -68,7 +68,7 @@ public class ContentAdminService {
     public GenrePayload createGenre(CreateGenreInput input) {
         String normalizedName = normalizeName(input.name());
         if (genreRepository.existsByNameIgnoreCase(normalizedName)) {
-            throw new ApiException("Genre already exists");
+            throw ApiException.duplicateResource("Genre already exists");
         }
 
         Genre genre = new Genre();
@@ -85,7 +85,7 @@ public class ContentAdminService {
         genreRepository.findByNameIgnoreCase(normalizedName)
                 .filter(existingGenre -> !existingGenre.getId().equals(id))
                 .ifPresent(existingGenre -> {
-                    throw new ApiException("Genre already exists");
+                    throw ApiException.duplicateResource("Genre already exists");
                 });
 
         genre.setName(normalizedName);
@@ -95,7 +95,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deleteGenre(Long id) {
         if (!genreRepository.existsById(id)) {
-            throw new ApiException("Genre not found");
+            throw ApiException.notFound("Genre not found");
         }
 
         genreRepository.deleteById(id);
@@ -114,7 +114,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public PersonPayload updatePerson(Long id, UpdatePersonInput input) {
         Person person = personRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Person not found"));
+                .orElseThrow(() -> ApiException.notFound("Person not found"));
 
         person.setName(normalizeName(input.name()));
         person.setBiography(normalizeOptionalText(input.biography()));
@@ -125,7 +125,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deletePerson(Long id) {
         if (!personRepository.existsById(id)) {
-            throw new ApiException("Person not found");
+            throw ApiException.notFound("Person not found");
         }
 
         personRepository.deleteById(id);
@@ -142,7 +142,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public MoviePayload updateMovie(Long id, UpdateMovieInput input) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Movie not found"));
+                .orElseThrow(() -> ApiException.notFound("Movie not found"));
 
         applyMovieInput(movie, input);
         return toMoviePayload(movieRepository.save(movie));
@@ -151,7 +151,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deleteMovie(Long id) {
         if (!movieRepository.existsById(id)) {
-            throw new ApiException("Movie not found");
+            throw ApiException.notFound("Movie not found");
         }
 
         movieRepository.deleteById(id);
@@ -168,7 +168,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public SeriesPayload updateSeries(Long id, UpdateSeriesInput input) {
         Series series = seriesRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Series not found"));
+                .orElseThrow(() -> ApiException.notFound("Series not found"));
 
         applySeriesInput(series, input);
         return toSeriesPayload(seriesRepository.save(series));
@@ -177,7 +177,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deleteSeries(Long id) {
         if (!seriesRepository.existsById(id)) {
-            throw new ApiException("Series not found");
+            throw ApiException.notFound("Series not found");
         }
 
         seriesRepository.deleteById(id);
@@ -187,7 +187,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public SeasonPayload createSeason(CreateSeasonInput input) {
         Series series = seriesRepository.findById(input.seriesId())
-                .orElseThrow(() -> new ApiException("Series not found"));
+                .orElseThrow(() -> ApiException.notFound("Series not found"));
 
         ensureSeasonNumberAvailable(series.getId(), input.seasonNumber(), null);
 
@@ -200,7 +200,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public SeasonPayload updateSeason(Long id, UpdateSeasonInput input) {
         Season season = seasonRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Season not found"));
+                .orElseThrow(() -> ApiException.notFound("Season not found"));
 
         ensureSeasonNumberAvailable(season.getSeries().getId(), input.seasonNumber(), id);
         applySeasonInput(season, input.title(), input.seasonNumber());
@@ -210,7 +210,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deleteSeason(Long id) {
         if (!seasonRepository.existsById(id)) {
-            throw new ApiException("Season not found");
+            throw ApiException.notFound("Season not found");
         }
 
         seasonRepository.deleteById(id);
@@ -220,7 +220,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public EpisodePayload createEpisode(CreateEpisodeInput input) {
         Season season = seasonRepository.findById(input.seasonId())
-                .orElseThrow(() -> new ApiException("Season not found"));
+                .orElseThrow(() -> ApiException.notFound("Season not found"));
 
         ensureEpisodeNumberAvailable(season.getId(), input.episodeNumber(), null);
 
@@ -233,7 +233,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public EpisodePayload updateEpisode(Long id, UpdateEpisodeInput input) {
         Episode episode = episodeRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Episode not found"));
+                .orElseThrow(() -> ApiException.notFound("Episode not found"));
 
         ensureEpisodeNumberAvailable(episode.getSeason().getId(), input.episodeNumber(), id);
         applyEpisodeInput(episode, input.title(), input.episodeNumber(), input.description(), input.durationMinutes(), input.releaseDate());
@@ -243,7 +243,7 @@ public class ContentAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public boolean deleteEpisode(Long id) {
         if (!episodeRepository.existsById(id)) {
-            throw new ApiException("Episode not found");
+            throw ApiException.notFound("Episode not found");
         }
 
         episodeRepository.deleteById(id);
@@ -406,7 +406,7 @@ public class ContentAdminService {
     private Set<Genre> resolveGenres(Set<Long> genreIds) {
         List<Genre> genres = genreRepository.findAllById(genreIds);
         if (genres.size() != genreIds.size()) {
-            throw new ApiException("One or more genres were not found");
+            throw ApiException.notFound("One or more genres were not found");
         }
 
         return new HashSet<>(genres);
@@ -415,7 +415,7 @@ public class ContentAdminService {
     private Set<Person> resolvePersons(Set<Long> personIds, String roleLabel) {
         List<Person> persons = personRepository.findAllById(personIds);
         if (persons.size() != personIds.size()) {
-            throw new ApiException("One or more " + roleLabel + " members were not found");
+            throw ApiException.notFound("One or more " + roleLabel + " members were not found");
         }
 
         return new HashSet<>(persons);
@@ -433,7 +433,7 @@ public class ContentAdminService {
             return;
         }
 
-        throw new ApiException("Season number already exists for this series");
+        throw ApiException.duplicateResource("Season number already exists for this series");
     }
 
     private void ensureEpisodeNumberAvailable(Long seasonId, Integer episodeNumber, Long currentEpisodeId) {
@@ -448,7 +448,7 @@ public class ContentAdminService {
             return;
         }
 
-        throw new ApiException("Episode number already exists for this season");
+        throw ApiException.duplicateResource("Episode number already exists for this season");
     }
 
     private String normalizeName(String value) {
@@ -473,7 +473,7 @@ public class ContentAdminService {
         try {
             return LocalDate.parse(normalizedValue);
         } catch (DateTimeParseException ex) {
-            throw new ApiException("Invalid " + fieldLabel + " format. Expected yyyy-MM-dd");
+            throw ApiException.validation("Invalid " + fieldLabel + " format. Expected yyyy-MM-dd");
         }
     }
 

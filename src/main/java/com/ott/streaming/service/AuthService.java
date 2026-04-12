@@ -53,7 +53,7 @@ public class AuthService {
                 .orElseThrow(() -> new ApiException("Invalid email or password", ErrorType.UNAUTHORIZED));
 
         if (!passwordEncoder.matches(input.password(), user.getPassword())) {
-            throw new ApiException("Invalid email or password", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Invalid email or password");
         }
 
         return buildAuthResponse(user);
@@ -61,7 +61,7 @@ public class AuthService {
 
     public AuthUser getCurrentUser(String email) {
         if (email == null || email.isBlank()) {
-            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Authentication is required");
         }
 
         User user = userRepository.findByEmail(normalizeEmail(email))

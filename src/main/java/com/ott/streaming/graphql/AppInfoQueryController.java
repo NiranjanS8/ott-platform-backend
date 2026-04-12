@@ -39,7 +39,7 @@ public class AppInfoQueryController {
     @QueryMapping
     public String ping(@Argument String message) {
         if (message == null || message.isBlank()) {
-            throw new ApiException("Message must not be blank");
+            throw ApiException.validation("Message must not be blank");
         }
 
         return "PONG: " + message.trim();

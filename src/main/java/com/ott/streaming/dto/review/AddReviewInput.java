@@ -4,12 +4,14 @@ import com.ott.streaming.entity.ContentType;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record AddReviewInput(
         @NotNull(message = "Content type is required")
         ContentType contentType,
         @NotNull(message = "Content id is required")
+        @Positive(message = "Content id must be greater than 0")
         Long contentId,
         @NotNull(message = "Rating is required")
         @Min(value = 1, message = "Rating must be between 1 and 5")

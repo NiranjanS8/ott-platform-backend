@@ -16,7 +16,7 @@ public class AuthValidationService {
 
     public void validateUniqueEmail(RegisterInput input) {
         if (userRepository.existsByEmail(input.email())) {
-            throw new ApiException("Email is already registered");
+            throw ApiException.duplicateResource("Email is already registered");
         }
     }
 }

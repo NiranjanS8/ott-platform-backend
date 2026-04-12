@@ -4,6 +4,7 @@ import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.validation.ConstraintViolationException;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
 import org.springframework.graphql.execution.ErrorType;
@@ -16,10 +17,7 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
     @Override
     protected GraphQLError resolveToSingleError(Throwable ex, DataFetchingEnvironment env) {
         if (ex instanceof ApiException apiException) {
-            return GraphqlErrorBuilder.newError(env)
-                    .errorType(apiException.getErrorType())
-                    .message(apiException.getMessage())
-                    .build();
+            return buildError(env, apiException.getErrorType(), apiException.getMessage());
         }
 
         if (ex instanceof ConstraintViolationException constraintViolationException) {
@@ -28,22 +26,25 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
                     .distinct()
                     .collect(Collectors.joining(", "));
 
-            return GraphqlErrorBuilder.newError(env)
-                    .errorType(ErrorType.BAD_REQUEST)
-                    .message(message)
-                    .build();
+            return buildError(env, ErrorType.BAD_REQUEST, "Validation failed: " + message);
         }
 
-        if (ex instanceof AccessDeniedException accessDeniedException) {
-            return GraphqlErrorBuilder.newError(env)
-                    .errorType(ErrorType.FORBIDDEN)
-                    .message(accessDeniedException.getMessage())
-                    .build();
+        if (ex instanceof IllegalArgumentException illegalArgumentException) {
+            return buildError(env, ErrorType.BAD_REQUEST, illegalArgumentException.getMessage());
         }
 
+        if (ex instanceof AccessDeniedException) {
+            return buildError(env, ErrorType.FORBIDDEN, "Access Denied");
+        }
+
+        return buildError(env, ErrorType.INTERNAL_ERROR, "Unexpected server error");
+    }
+
+    private GraphQLError buildError(DataFetchingEnvironment env, ErrorType errorType, String message) {
         return GraphqlErrorBuilder.newError(env)
-                .errorType(ErrorType.INTERNAL_ERROR)
-                .message("Unexpected server error")
+                .errorType(errorType)
+                .message(message)
+                .extensions(Map.of("code", errorType.name()))
                 .build();
     }
 }

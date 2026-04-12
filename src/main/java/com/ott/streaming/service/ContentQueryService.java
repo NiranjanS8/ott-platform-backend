@@ -223,7 +223,7 @@ public class ContentQueryService {
         }
 
         if (!userSubscriptionService.hasPremiumAccess(email)) {
-            throw new ApiException("Premium subscription required to access this content", ErrorType.FORBIDDEN);
+            throw ApiException.forbidden("Premium subscription required to access this content");
         }
     }
 

@@ -42,7 +42,7 @@ public class WatchlistService {
                 input.contentType(),
                 input.contentId()
         )) {
-            throw new ApiException("Content is already in your watchlist");
+            throw ApiException.duplicateResource("Content is already in your watchlist");
         }
 
         WatchlistItem item = new WatchlistItem();
@@ -62,6 +62,7 @@ public class WatchlistService {
                         contentId
                 )
                 .orElseThrow(() -> new ApiException("Watchlist item not found", ErrorType.NOT_FOUND));
+                
 
         watchlistItemRepository.delete(item);
         return true;
@@ -77,11 +78,11 @@ public class WatchlistService {
 
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
-            throw new ApiException("Authentication is required", ErrorType.UNAUTHORIZED);
+            throw ApiException.unauthorized("Authentication is required");
         }
 
         return userRepository.findByEmail(normalizeEmail(email))
-                .orElseThrow(() -> new ApiException("Authenticated user not found", ErrorType.UNAUTHORIZED));
+                .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
     }
 
     private void validateContentExists(ContentType contentType, Long contentId) {
@@ -92,7 +93,7 @@ public class WatchlistService {
 
         if (!exists) {
             String label = contentType == ContentType.MOVIE ? "Movie" : "Series";
-            throw new ApiException(label + " not found", ErrorType.NOT_FOUND);
+            throw ApiException.notFound(label + " not found");
         }
     }
 

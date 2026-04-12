@@ -36,7 +36,7 @@ public class SubscriptionAdminService {
     public SubscriptionPlanPayload createSubscriptionPlan(CreateSubscriptionPlanInput input) {
         String normalizedName = normalizeName(input.name());
         if (subscriptionPlanRepository.existsByNameIgnoreCase(normalizedName)) {
-            throw new ApiException("Subscription plan already exists");
+            throw ApiException.duplicateResource("Subscription plan already exists");
         }
 
         SubscriptionPlan plan = new SubscriptionPlan();
@@ -47,13 +47,13 @@ public class SubscriptionAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public SubscriptionPlanPayload updateSubscriptionPlan(Long id, UpdateSubscriptionPlanInput input) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Subscription plan not found"));
+                .orElseThrow(() -> ApiException.notFound("Subscription plan not found"));
 
         String normalizedName = normalizeName(input.name());
         subscriptionPlanRepository.findByNameIgnoreCase(normalizedName)
                 .filter(existing -> !existing.getId().equals(id))
                 .ifPresent(existing -> {
-                    throw new ApiException("Subscription plan already exists");
+                    throw ApiException.duplicateResource("Subscription plan already exists");
                 });
 
         applyPlanInput(plan, normalizedName, input.description(), input.price(), input.durationDays(), input.active());
@@ -63,7 +63,7 @@ public class SubscriptionAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public MoviePayload updateMovieAccessLevel(Long id, UpdateContentAccessInput input) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Movie not found"));
+                .orElseThrow(() -> ApiException.notFound("Movie not found"));
 
         movie.setAccessLevel(input.accessLevel());
         return toMoviePayload(movieRepository.save(movie));
@@ -72,7 +72,7 @@ public class SubscriptionAdminService {
     @PreAuthorize("hasRole('ADMIN')")
     public SeriesPayload updateSeriesAccessLevel(Long id, UpdateContentAccessInput input) {
         Series series = seriesRepository.findById(id)
-                .orElseThrow(() -> new ApiException("Series not found"));
+                .orElseThrow(() -> ApiException.notFound("Series not found"));
 
         series.setAccessLevel(input.accessLevel());
         return toSeriesPayload(seriesRepository.save(series));
