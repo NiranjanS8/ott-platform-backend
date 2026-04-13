@@ -16,7 +16,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import org.springframework.graphql.execution.ErrorType;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -66,7 +65,7 @@ public class WatchProgressService {
     public WatchProgressPayload markAsCompleted(String email, ContentType contentType, Long contentId, Long episodeId) {
         User currentUser = getAuthenticatedUser(email);
         WatchProgress progress = findExistingProgress(currentUser.getId(), contentType, contentId, episodeId)
-                .orElseThrow(() -> new ApiException("Watch progress not found", ErrorType.NOT_FOUND));
+                .orElseThrow(() -> ApiException.notFound("Watch progress not found"));
                 
 
         progress.setProgressSeconds(progress.getDurationSeconds());
@@ -94,6 +93,32 @@ public class WatchProgressService {
                 .toList();
     }
 
+    public WatchProgressPayload syncPlaybackProgress(Long userId,
+                                                     ContentType contentType,
+                                                     Long contentId,
+                                                     Long seasonId,
+                                                     Long episodeId,
+                                                     Integer progressSeconds,
+                                                     Integer durationSeconds,
+                                                     boolean completed) {
+        validatePlaybackProgress(contentType, progressSeconds, durationSeconds);
+
+        WatchProgress progress = findExistingProgress(userId, contentType, contentId, episodeId)
+                .orElseGet(WatchProgress::new);
+
+        progress.setUserId(userId);
+        progress.setContentType(contentType);
+        progress.setContentId(contentId);
+        progress.setSeasonId(seasonId);
+        progress.setEpisodeId(episodeId);
+        progress.setProgressSeconds(progressSeconds);
+        progress.setDurationSeconds(durationSeconds);
+        progress.setCompleted(completed);
+        progress.setLastWatchedAt(Instant.now());
+
+        return toPayload(watchProgressRepository.save(progress));
+    }
+
     private User getAuthenticatedUser(String email) {
         if (email == null || email.isBlank()) {
             throw ApiException.unauthorized("Authentication is required");
@@ -104,13 +129,21 @@ public class WatchProgressService {
     }
 
     private void validateProgressInput(UpdateWatchProgressInput input) {
-        if (input.progressSeconds() > input.durationSeconds()) {
-            throw ApiException.validation("Progress seconds cannot exceed duration seconds");
-        }
+        validatePlaybackProgress(input.contentType(), input.progressSeconds(), input.durationSeconds());
 
         switch (input.contentType()) {
             case MOVIE -> validateMovieProgress(input);
             case SERIES -> validateSeriesProgress(input);
+        }
+    }
+
+    private void validatePlaybackProgress(ContentType contentType, Integer progressSeconds, Integer durationSeconds) {
+        if (progressSeconds > durationSeconds) {
+            throw ApiException.validation("Progress seconds cannot exceed duration seconds");
+        }
+
+        if (contentType == null) {
+            throw ApiException.validation("Content type is required");
         }
     }
 

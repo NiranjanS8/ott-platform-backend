@@ -1,5 +1,8 @@
 extend type Mutation {
   startPlayback(input: StartPlaybackInput!): PlaybackSession!
+  heartbeatPlayback(input: PlaybackHeartbeatInput!): PlaybackSession!
+  stopPlayback(input: StopPlaybackInput!): PlaybackSession!
+  resumePlayback(input: StartPlaybackInput!): PlaybackSession!
 }
 
 type PlaybackSession {
@@ -24,6 +27,19 @@ input StartPlaybackInput {
   contentId: ID!
   seasonId: ID
   episodeId: ID
+}
+
+input PlaybackHeartbeatInput {
+  playbackToken: String!
+  progressSeconds: Int!
+  durationSeconds: Int!
+}
+
+input StopPlaybackInput {
+  playbackToken: String!
+  progressSeconds: Int!
+  durationSeconds: Int!
+  completed: Boolean
 }
 
 enum PlaybackSessionStatus {

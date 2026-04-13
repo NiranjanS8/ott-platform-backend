@@ -42,6 +42,7 @@ app:
   playback:
     base-url: ${PLAYBACK_BASE_URL:https://stream.ott.local/playback}
     session-ttl: ${PLAYBACK_SESSION_TTL:PT15M}
+    completion-threshold: ${PLAYBACK_COMPLETION_THRESHOLD:0.95}
 
 security:
   jwt:

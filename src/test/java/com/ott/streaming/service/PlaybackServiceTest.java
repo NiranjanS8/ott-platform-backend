@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.ott.streaming.dto.playback.PlaybackHeartbeatInput;
 import com.ott.streaming.dto.playback.PlaybackSessionPayload;
 import com.ott.streaming.dto.playback.StartPlaybackInput;
+import com.ott.streaming.dto.playback.StopPlaybackInput;
 import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.entity.Episode;
@@ -51,6 +53,9 @@ class PlaybackServiceTest {
     @Mock
     private UserSubscriptionService userSubscriptionService;
 
+    @Mock
+    private WatchProgressService watchProgressService;
+
     private PlaybackService playbackService;
 
     @BeforeEach
@@ -61,7 +66,9 @@ class PlaybackServiceTest {
                 movieRepository,
                 episodeRepository,
                 userSubscriptionService,
+                watchProgressService,
                 Duration.ofMinutes(15),
+                0.95,
                 "https://stream.ott.local/playback"
         );
     }
@@ -165,6 +172,118 @@ class PlaybackServiceTest {
                 .hasMessage("Authentication is required");
     }
 
+    @Test
+    void heartbeatRefreshesActiveSessionAndSyncsProgress() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(1L, 9L, ContentType.MOVIE, 10L, null, null, PlaybackSessionStatus.ACTIVE);
+        session.setPlaybackToken("token-123");
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(playbackSessionRepository.findByPlaybackTokenAndUserId("token-123", 9L)).thenReturn(Optional.of(session));
+        when(watchProgressService.syncPlaybackProgress(9L, ContentType.MOVIE, 10L, null, null, 300, 7200, false))
+                .thenReturn(null);
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaybackSessionPayload payload = playbackService.heartbeat(
+                "member@example.com",
+                new PlaybackHeartbeatInput("token-123", 300, 7200)
+        );
+
+        assertThat(payload.status()).isEqualTo(PlaybackSessionStatus.ACTIVE);
+        assertThat(payload.playbackToken()).isEqualTo("token-123");
+    }
+
+    @Test
+    void stopPlaybackMarksStoppedAndCompletesProgressAtThreshold() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(2L, 9L, ContentType.SERIES, 77L, 8L, 9L, PlaybackSessionStatus.ACTIVE);
+        session.setPlaybackToken("token-stop");
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(playbackSessionRepository.findByPlaybackTokenAndUserId("token-stop", 9L)).thenReturn(Optional.of(session));
+        when(watchProgressService.syncPlaybackProgress(9L, ContentType.SERIES, 77L, 8L, 9L, 3420, 3600, true))
+                .thenReturn(null);
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaybackSessionPayload payload = playbackService.stopPlayback(
+                "member@example.com",
+                new StopPlaybackInput("token-stop", 3420, 3600, false)
+        );
+
+        assertThat(payload.status()).isEqualTo(PlaybackSessionStatus.STOPPED);
+    }
+
+    @Test
+    void heartbeatRejectsExpiredSessionReuse() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(3L, 9L, ContentType.MOVIE, 10L, null, null, PlaybackSessionStatus.ACTIVE);
+        session.setPlaybackToken("token-expired");
+        session.setExpiresAt(Instant.now().minusSeconds(5));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(playbackSessionRepository.findByPlaybackTokenAndUserId("token-expired", 9L)).thenReturn(Optional.of(session));
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> playbackService.heartbeat(
+                "member@example.com",
+                new PlaybackHeartbeatInput("token-expired", 100, 7200)
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Playback session has expired");
+    }
+
+    @Test
+    void resumePlaybackReturnsExistingActiveSessionForSameContent() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(4L, 9L, ContentType.SERIES, 77L, 8L, 9L, PlaybackSessionStatus.ACTIVE);
+        Episode episode = episode(9L, 8L, 77L, ContentAccessLevel.FREE);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(episodeRepository.findWithSeasonAndSeriesById(9L)).thenReturn(Optional.of(episode));
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdOrderByLastHeartbeatAtDesc(
+                9L, ContentType.SERIES, 77L, 9L
+        )).thenReturn(Optional.of(session));
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaybackSessionPayload payload = playbackService.resumePlayback(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.SERIES, 77L, 8L, 9L)
+        );
+
+        assertThat(payload.id()).isEqualTo(4L);
+        assertThat(payload.status()).isEqualTo(PlaybackSessionStatus.ACTIVE);
+    }
+
+    @Test
+    void resumePlaybackCreatesNewSessionWhenPreviousSessionIsStopped() {
+        User user = buildUser(9L);
+        PlaybackSession stoppedSession = playbackSession(5L, 9L, ContentType.MOVIE, 10L, null, null, PlaybackSessionStatus.STOPPED);
+        Movie movie = movie(10L, ContentAccessLevel.FREE);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdIsNullOrderByLastHeartbeatAtDesc(
+                9L, ContentType.MOVIE, 10L
+        )).thenReturn(Optional.of(stoppedSession));
+        when(movieRepository.findById(10L)).thenReturn(Optional.of(movie));
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> {
+            PlaybackSession session = invocation.getArgument(0);
+            if (session.getId() == null) {
+                session.setId(6L);
+            }
+            ReflectionTestUtils.setField(session, "createdAt", Instant.parse("2026-04-13T10:00:00Z"));
+            ReflectionTestUtils.setField(session, "updatedAt", Instant.parse("2026-04-13T10:00:00Z"));
+            return session;
+        });
+
+        PlaybackSessionPayload payload = playbackService.resumePlayback(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.MOVIE, 10L, null, null)
+        );
+
+        assertThat(payload.id()).isEqualTo(6L);
+        assertThat(payload.status()).isEqualTo(PlaybackSessionStatus.ACTIVE);
+    }
+
     private User buildUser(Long id) {
         User user = new User();
         user.setId(id);
@@ -213,5 +332,29 @@ class PlaybackServiceTest {
         ReflectionTestUtils.setField(episode, "createdAt", Instant.parse("2026-04-13T10:00:00Z"));
         ReflectionTestUtils.setField(episode, "updatedAt", Instant.parse("2026-04-13T10:00:00Z"));
         return episode;
+    }
+
+    private PlaybackSession playbackSession(Long id,
+                                            Long userId,
+                                            ContentType contentType,
+                                            Long contentId,
+                                            Long seasonId,
+                                            Long episodeId,
+                                            PlaybackSessionStatus status) {
+        PlaybackSession session = new PlaybackSession();
+        session.setId(id);
+        session.setUserId(userId);
+        session.setContentType(contentType);
+        session.setContentId(contentId);
+        session.setSeasonId(seasonId);
+        session.setEpisodeId(episodeId);
+        session.setPlaybackToken("token-" + id);
+        session.setStartedAt(Instant.now().minusSeconds(60));
+        session.setLastHeartbeatAt(Instant.now().minusSeconds(30));
+        session.setExpiresAt(Instant.now().plusSeconds(600));
+        session.setStatus(status);
+        ReflectionTestUtils.setField(session, "createdAt", Instant.parse("2026-04-13T10:00:00Z"));
+        ReflectionTestUtils.setField(session, "updatedAt", Instant.parse("2026-04-13T10:00:00Z"));
+        return session;
     }
 }

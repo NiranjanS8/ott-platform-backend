@@ -11,6 +11,8 @@ public interface PlaybackSessionRepository extends JpaRepository<PlaybackSession
 
     Optional<PlaybackSession> findByPlaybackToken(String playbackToken);
 
+    Optional<PlaybackSession> findByPlaybackTokenAndUserId(String playbackToken, Long userId);
+
     List<PlaybackSession> findByUserIdAndStatusOrderByLastHeartbeatAtDesc(Long userId, PlaybackSessionStatus status);
 
     Optional<PlaybackSession> findFirstByUserIdAndContentTypeAndContentIdAndStatusOrderByStartedAtDesc(
@@ -26,5 +28,18 @@ public interface PlaybackSessionRepository extends JpaRepository<PlaybackSession
             Long contentId,
             Long episodeId,
             PlaybackSessionStatus status
+    );
+
+    Optional<PlaybackSession> findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdIsNullOrderByLastHeartbeatAtDesc(
+            Long userId,
+            ContentType contentType,
+            Long contentId
+    );
+
+    Optional<PlaybackSession> findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdOrderByLastHeartbeatAtDesc(
+            Long userId,
+            ContentType contentType,
+            Long contentId,
+            Long episodeId
     );
 }
