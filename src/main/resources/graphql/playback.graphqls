@@ -1,8 +1,25 @@
+extend type Query {
+  playbackAccess(input: StartPlaybackInput!): PlaybackAccess!
+  activePlayback(input: StartPlaybackInput!): PlaybackSession
+}
+
 extend type Mutation {
   startPlayback(input: StartPlaybackInput!): PlaybackSession!
   heartbeatPlayback(input: PlaybackHeartbeatInput!): PlaybackSession!
   stopPlayback(input: StopPlaybackInput!): PlaybackSession!
   resumePlayback(input: StartPlaybackInput!): PlaybackSession!
+}
+
+type PlaybackAccess {
+  contentType: ContentType!
+  contentId: ID!
+  seasonId: ID
+  episodeId: ID
+  accessLevel: ContentAccessLevel!
+  allowed: Boolean!
+  requiresSubscription: Boolean!
+  reason: String!
+  activeSession: PlaybackSession
 }
 
 type PlaybackSession {

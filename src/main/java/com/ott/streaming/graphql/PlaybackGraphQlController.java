@@ -1,5 +1,6 @@
 package com.ott.streaming.graphql;
 
+import com.ott.streaming.dto.playback.PlaybackAccessPayload;
 import com.ott.streaming.dto.playback.PlaybackSessionPayload;
 import com.ott.streaming.dto.playback.PlaybackHeartbeatInput;
 import com.ott.streaming.dto.playback.StartPlaybackInput;
@@ -8,6 +9,7 @@ import com.ott.streaming.service.PlaybackService;
 import jakarta.validation.Valid;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
+import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
@@ -44,5 +46,17 @@ public class PlaybackGraphQlController {
     public PlaybackSessionPayload resumePlayback(@AuthenticationPrincipal(expression = "username") String email,
                                                  @Argument @Valid StartPlaybackInput input) {
         return playbackService.resumePlayback(email, input);
+    }
+
+    @QueryMapping
+    public PlaybackAccessPayload playbackAccess(@AuthenticationPrincipal(expression = "username") String email,
+                                                @Argument @Valid StartPlaybackInput input) {
+        return playbackService.getPlaybackAccess(email, input);
+    }
+
+    @QueryMapping
+    public PlaybackSessionPayload activePlayback(@AuthenticationPrincipal(expression = "username") String email,
+                                                 @Argument @Valid StartPlaybackInput input) {
+        return playbackService.getActivePlayback(email, input);
     }
 }

@@ -3,8 +3,10 @@ package com.ott.streaming.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.ott.streaming.dto.playback.PlaybackAccessPayload;
 import com.ott.streaming.dto.playback.PlaybackHeartbeatInput;
 import com.ott.streaming.dto.playback.PlaybackSessionPayload;
 import com.ott.streaming.dto.playback.StartPlaybackInput;
@@ -282,6 +284,99 @@ class PlaybackServiceTest {
 
         assertThat(payload.id()).isEqualTo(6L);
         assertThat(payload.status()).isEqualTo(PlaybackSessionStatus.ACTIVE);
+    }
+
+    @Test
+    void getPlaybackAccessReturnsBlockedStatusForPremiumContentWithoutSubscription() {
+        User user = buildUser(9L);
+        Movie movie = movie(10L, ContentAccessLevel.PREMIUM);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.findById(10L)).thenReturn(Optional.of(movie));
+        when(userSubscriptionService.hasPremiumAccess("member@example.com")).thenReturn(false);
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdIsNullOrderByLastHeartbeatAtDesc(
+                9L, ContentType.MOVIE, 10L
+        )).thenReturn(Optional.empty());
+
+        PlaybackAccessPayload payload = playbackService.getPlaybackAccess(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.MOVIE, 10L, null, null)
+        );
+
+        assertThat(payload.accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
+        assertThat(payload.allowed()).isFalse();
+        assertThat(payload.requiresSubscription()).isTrue();
+        assertThat(payload.reason()).isEqualTo("Premium subscription required to start playback");
+        assertThat(payload.activeSession()).isNull();
+    }
+
+    @Test
+    void getPlaybackAccessIncludesReusableActiveSessionWhenAvailable() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(7L, 9L, ContentType.SERIES, 77L, 8L, 9L, PlaybackSessionStatus.ACTIVE);
+        Episode episode = episode(9L, 8L, 77L, ContentAccessLevel.FREE);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(episodeRepository.findWithSeasonAndSeriesById(9L)).thenReturn(Optional.of(episode));
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdOrderByLastHeartbeatAtDesc(
+                9L, ContentType.SERIES, 77L, 9L
+        )).thenReturn(Optional.of(session));
+
+        PlaybackAccessPayload payload = playbackService.getPlaybackAccess(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.SERIES, 77L, 8L, 9L)
+        );
+
+        assertThat(payload.allowed()).isTrue();
+        assertThat(payload.activeSession()).isNotNull();
+        assertThat(payload.activeSession().id()).isEqualTo(7L);
+        assertThat(payload.activeSession().playbackToken()).isEqualTo("token-7");
+    }
+
+    @Test
+    void getActivePlaybackReturnsCurrentSessionForMatchingContent() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(8L, 9L, ContentType.MOVIE, 10L, null, null, PlaybackSessionStatus.ACTIVE);
+        Movie movie = movie(10L, ContentAccessLevel.FREE);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.findById(10L)).thenReturn(Optional.of(movie));
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdIsNullOrderByLastHeartbeatAtDesc(
+                9L, ContentType.MOVIE, 10L
+        )).thenReturn(Optional.of(session));
+
+        PlaybackSessionPayload payload = playbackService.getActivePlayback(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.MOVIE, 10L, null, null)
+        );
+
+        assertThat(payload).isNotNull();
+        assertThat(payload.id()).isEqualTo(8L);
+        assertThat(payload.playbackToken()).isEqualTo("token-8");
+    }
+
+    @Test
+    void getActivePlaybackExpiresStaleSessionAndReturnsNull() {
+        User user = buildUser(9L);
+        PlaybackSession session = playbackSession(9L, 9L, ContentType.MOVIE, 10L, null, null, PlaybackSessionStatus.ACTIVE);
+        Movie movie = movie(10L, ContentAccessLevel.FREE);
+        session.setExpiresAt(Instant.now().minusSeconds(15));
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.findById(10L)).thenReturn(Optional.of(movie));
+        when(playbackSessionRepository.findFirstByUserIdAndContentTypeAndContentIdAndEpisodeIdIsNullOrderByLastHeartbeatAtDesc(
+                9L, ContentType.MOVIE, 10L
+        )).thenReturn(Optional.of(session));
+        when(playbackSessionRepository.save(any(PlaybackSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaybackSessionPayload payload = playbackService.getActivePlayback(
+                "member@example.com",
+                new StartPlaybackInput(ContentType.MOVIE, 10L, null, null)
+        );
+
+        assertThat(payload).isNull();
+        assertThat(session.getStatus()).isEqualTo(PlaybackSessionStatus.EXPIRED);
+        verify(playbackSessionRepository).save(session);
     }
 
     private User buildUser(Long id) {

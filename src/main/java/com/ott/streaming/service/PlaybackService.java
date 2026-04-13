@@ -1,7 +1,9 @@
 package com.ott.streaming.service;
 
+import com.ott.streaming.dto.playback.PlaybackAccessPayload;
 import com.ott.streaming.dto.playback.PlaybackSessionPayload;
 import com.ott.streaming.dto.playback.PlaybackHeartbeatInput;
+import com.ott.streaming.dto.playback.ResolvedPlaybackTarget;
 import com.ott.streaming.dto.playback.StartPlaybackInput;
 import com.ott.streaming.dto.playback.StopPlaybackInput;
 import com.ott.streaming.entity.ContentAccessLevel;
@@ -59,7 +61,8 @@ public class PlaybackService {
 
     public PlaybackSessionPayload startPlayback(String email, StartPlaybackInput input) {
         User currentUser = getAuthenticatedUser(email);
-        PlaybackTarget playbackTarget = resolvePlaybackTarget(email, input);
+        ResolvedPlaybackTarget playbackTarget = resolvePlaybackTarget(input);
+        enforceAccess(email, playbackTarget.accessLevel());
         Instant now = Instant.now();
 
         PlaybackSession session = new PlaybackSession();
@@ -105,33 +108,67 @@ public class PlaybackService {
 
     public PlaybackSessionPayload resumePlayback(String email, StartPlaybackInput input) {
         User currentUser = getAuthenticatedUser(email);
-        PlaybackTarget playbackTarget = resolvePlaybackTarget(email, input);
+        ResolvedPlaybackTarget playbackTarget = resolvePlaybackTarget(input);
+        enforceAccess(email, playbackTarget.accessLevel());
 
         return findLatestSession(currentUser.getId(), input.contentType(), input.contentId(), playbackTarget.episodeId())
                 .filter(existing -> existing.getStatus() == PlaybackSessionStatus.ACTIVE)
-                .map(existing -> refreshExistingSession(existing))
+                .map(this::refreshExistingSession)
                 .orElseGet(() -> startPlayback(email, input));
     }
 
-    private PlaybackTarget resolvePlaybackTarget(String email, StartPlaybackInput input) {
+    public PlaybackAccessPayload getPlaybackAccess(String email, StartPlaybackInput input) {
+        User currentUser = getAuthenticatedUser(email);
+        ResolvedPlaybackTarget playbackTarget = resolvePlaybackTarget(input);
+        boolean requiresSubscription = playbackTarget.accessLevel() == ContentAccessLevel.PREMIUM;
+        boolean allowed = !requiresSubscription || userSubscriptionService.hasPremiumAccess(email);
+        String reason = allowed
+                ? "Playback available"
+                : "Premium subscription required to start playback";
+
+        return new PlaybackAccessPayload(
+                input.contentType(),
+                input.contentId(),
+                playbackTarget.seasonId(),
+                playbackTarget.episodeId(),
+                playbackTarget.accessLevel(),
+                allowed,
+                requiresSubscription,
+                reason,
+                findActiveSession(currentUser.getId(), input.contentType(), input.contentId(), playbackTarget.episodeId())
+                        .map(this::toPayload)
+                        .orElse(null)
+        );
+    }
+
+    public PlaybackSessionPayload getActivePlayback(String email, StartPlaybackInput input) {
+        User currentUser = getAuthenticatedUser(email);
+        ResolvedPlaybackTarget playbackTarget = resolvePlaybackTarget(input);
+        enforceAccess(email, playbackTarget.accessLevel());
+
+        return findActiveSession(currentUser.getId(), input.contentType(), input.contentId(), playbackTarget.episodeId())
+                .map(this::toPayload)
+                .orElse(null);
+    }
+
+    private ResolvedPlaybackTarget resolvePlaybackTarget(StartPlaybackInput input) {
         return switch (input.contentType()) {
-            case MOVIE -> resolveMovieTarget(email, input);
-            case SERIES -> resolveSeriesTarget(email, input);
+            case MOVIE -> resolveMovieTarget(input);
+            case SERIES -> resolveSeriesTarget(input);
         };
     }
 
-    private PlaybackTarget resolveMovieTarget(String email, StartPlaybackInput input) {
+    private ResolvedPlaybackTarget resolveMovieTarget(StartPlaybackInput input) {
         if (input.seasonId() != null || input.episodeId() != null) {
             throw ApiException.validation("Movie playback does not support season or episode ids");
         }
 
         Movie movie = movieRepository.findById(input.contentId())
                 .orElseThrow(() -> ApiException.notFound("Movie not found"));
-        enforceAccess(email, movie.getAccessLevel());
-        return new PlaybackTarget(null, null);
+        return new ResolvedPlaybackTarget(null, null, movie.getAccessLevel());
     }
 
-    private PlaybackTarget resolveSeriesTarget(String email, StartPlaybackInput input) {
+    private ResolvedPlaybackTarget resolveSeriesTarget(StartPlaybackInput input) {
         if (input.episodeId() == null) {
             throw ApiException.validation("Series playback requires an episode id");
         }
@@ -148,8 +185,7 @@ public class PlaybackService {
             throw ApiException.validation("Episode does not belong to the requested season");
         }
 
-        enforceAccess(email, series.getAccessLevel());
-        return new PlaybackTarget(episode.getSeason().getId(), episode.getId());
+        return new ResolvedPlaybackTarget(episode.getSeason().getId(), episode.getId(), series.getAccessLevel());
     }
 
     private void enforceAccess(String email, ContentAccessLevel accessLevel) {
@@ -232,6 +268,23 @@ public class PlaybackService {
         );
     }
 
+    private java.util.Optional<PlaybackSession> findActiveSession(Long userId,
+                                                                  ContentType contentType,
+                                                                  Long contentId,
+                                                                  Long episodeId) {
+        return findLatestSession(userId, contentType, contentId, episodeId)
+                .filter(session -> session.getStatus() == PlaybackSessionStatus.ACTIVE)
+                .flatMap(session -> {
+                    if (session.getExpiresAt().isBefore(Instant.now())) {
+                        session.setStatus(PlaybackSessionStatus.EXPIRED);
+                        playbackSessionRepository.save(session);
+                        return java.util.Optional.empty();
+                    }
+
+                    return java.util.Optional.of(session);
+                });
+    }
+
     private PlaybackSessionPayload refreshExistingSession(PlaybackSession session) {
         if (session.getExpiresAt().isBefore(Instant.now())) {
             session.setStatus(PlaybackSessionStatus.EXPIRED);
@@ -282,8 +335,5 @@ public class PlaybackService {
 
     private String normalizeEmail(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private record PlaybackTarget(Long seasonId, Long episodeId) {
     }
 }
