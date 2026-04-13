@@ -1,0 +1,33 @@
+extend type Mutation {
+  startPlayback(input: StartPlaybackInput!): PlaybackSession!
+}
+
+type PlaybackSession {
+  id: ID!
+  userId: ID!
+  contentType: ContentType!
+  contentId: ID!
+  seasonId: ID
+  episodeId: ID
+  playbackToken: String!
+  streamUrl: String!
+  startedAt: String!
+  expiresAt: String!
+  lastHeartbeatAt: String!
+  status: PlaybackSessionStatus!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input StartPlaybackInput {
+  contentType: ContentType!
+  contentId: ID!
+  seasonId: ID
+  episodeId: ID
+}
+
+enum PlaybackSessionStatus {
+  ACTIVE
+  STOPPED
+  EXPIRED
+}

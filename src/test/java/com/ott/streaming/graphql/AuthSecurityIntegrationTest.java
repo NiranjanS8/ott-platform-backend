@@ -37,6 +37,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.ott.streaming.repository.GenreRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.PersonRepository;
+import com.ott.streaming.repository.PlaybackSessionRepository;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.ReviewRepository;
 import com.ott.streaming.repository.SeasonRepository;
@@ -96,6 +97,9 @@ class AuthSecurityIntegrationTest {
 
     @MockitoBean
     private WatchProgressRepository watchProgressRepository;
+
+    @MockitoBean
+    private PlaybackSessionRepository playbackSessionRepository;
 
     @MockitoBean
     private SubscriptionPlanRepository subscriptionPlanRepository;

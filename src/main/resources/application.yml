@@ -39,6 +39,9 @@ app:
   graphql:
     max-query-depth: ${GRAPHQL_MAX_QUERY_DEPTH:8}
     log-requests: ${GRAPHQL_LOG_REQUESTS:true}
+  playback:
+    base-url: ${PLAYBACK_BASE_URL:https://stream.ott.local/playback}
+    session-ttl: ${PLAYBACK_SESSION_TTL:PT15M}
 
 security:
   jwt:

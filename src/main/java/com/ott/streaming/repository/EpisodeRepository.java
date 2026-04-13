@@ -4,6 +4,7 @@ import com.ott.streaming.entity.Episode;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface EpisodeRepository extends JpaRepository<Episode, Long> {
@@ -13,4 +14,7 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
     Optional<Episode> findByIdAndSeasonId(Long id, Long seasonId);
 
     List<Episode> findBySeasonIdInOrderByEpisodeNumberAsc(Collection<Long> seasonIds);
+
+    @EntityGraph(attributePaths = {"season", "season.series"})
+    Optional<Episode> findWithSeasonAndSeriesById(Long id);
 }
