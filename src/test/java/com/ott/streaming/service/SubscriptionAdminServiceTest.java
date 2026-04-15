@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,6 +79,23 @@ class SubscriptionAdminServiceTest {
     @Test
     void createSubscriptionPlanThrowsWhenNameAlreadyExists() {
         when(subscriptionPlanRepository.existsByNameIgnoreCase("Premium Monthly")).thenReturn(true);
+
+        assertThatThrownBy(() -> subscriptionAdminService.createSubscriptionPlan(new CreateSubscriptionPlanInput(
+                "Premium Monthly",
+                null,
+                new BigDecimal("9.99"),
+                30,
+                true
+        )))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Subscription plan already exists");
+    }
+
+    @Test
+    void createSubscriptionPlanTranslatesConstraintRaceToDuplicateError() {
+        when(subscriptionPlanRepository.existsByNameIgnoreCase("Premium Monthly")).thenReturn(false);
+        when(subscriptionPlanRepository.save(any(SubscriptionPlan.class)))
+                .thenThrow(new DataIntegrityViolationException("subscription_plans_name_key"));
 
         assertThatThrownBy(() -> subscriptionAdminService.createSubscriptionPlan(new CreateSubscriptionPlanInput(
                 "Premium Monthly",

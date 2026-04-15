@@ -18,9 +18,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
@@ -58,7 +61,11 @@ public class ReviewService {
         review.setRating(input.rating());
         review.setComment(normalizeComment(input.comment()));
 
-        return toPayload(reviewRepository.save(review));
+        try {
+            return toPayload(reviewRepository.save(review));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("You have already reviewed this content");
+        }
     }
 
     public ReviewPayload updateReview(String email, Long id, UpdateReviewInput input) {

@@ -42,6 +42,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -294,6 +295,20 @@ class ContentAdminServiceTest {
     }
 
     @Test
+    void createSeasonTranslatesConstraintRaceToDuplicateError() {
+        Series series = new Series();
+        series.setId(5L);
+        when(seriesRepository.findById(5L)).thenReturn(Optional.of(series));
+        when(seasonRepository.existsBySeriesIdAndSeasonNumber(5L, 1)).thenReturn(false);
+        when(seasonRepository.save(any(Season.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_season_number_per_series"));
+
+        assertThatThrownBy(() -> contentAdminService.createSeason(new CreateSeasonInput(5L, "Season 1", 1)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Season number already exists for this series");
+    }
+
+    @Test
     void createSeasonPersistsWithParentSeries() {
         Series series = new Series();
         series.setId(5L);
@@ -330,6 +345,20 @@ class ContentAdminServiceTest {
         season.setId(6L);
         when(seasonRepository.findById(6L)).thenReturn(Optional.of(season));
         when(episodeRepository.existsBySeasonIdAndEpisodeNumber(6L, 1)).thenReturn(true);
+
+        assertThatThrownBy(() -> contentAdminService.createEpisode(new CreateEpisodeInput(6L, "Episode 1", 1, null, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Episode number already exists for this season");
+    }
+
+    @Test
+    void createEpisodeTranslatesConstraintRaceToDuplicateError() {
+        Season season = new Season();
+        season.setId(6L);
+        when(seasonRepository.findById(6L)).thenReturn(Optional.of(season));
+        when(episodeRepository.existsBySeasonIdAndEpisodeNumber(6L, 1)).thenReturn(false);
+        when(episodeRepository.save(any(Episode.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_episode_number_per_season"));
 
         assertThatThrownBy(() -> contentAdminService.createEpisode(new CreateEpisodeInput(6L, "Episode 1", 1, null, null, null)))
                 .isInstanceOf(ApiException.class)

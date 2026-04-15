@@ -14,7 +14,6 @@ import com.ott.streaming.repository.UserSubscriptionRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
-import org.springframework.graphql.execution.ErrorType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +34,7 @@ public class UserSubscriptionService {
     }
 
     public UserSubscriptionPayload subscribeToPlan(String email, SubscribeToPlanInput input) {
-        User currentUser = getAuthenticatedUser(email);
+        User currentUser = getAuthenticatedUserForUpdate(email);
         SubscriptionPlan plan = subscriptionPlanRepository.findById(input.planId())
                 .orElseThrow(() -> ApiException.notFound("Subscription plan not found"));
 
@@ -115,6 +114,15 @@ public class UserSubscriptionService {
         }
 
         return userRepository.findByEmail(normalizeEmail(email))
+                .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
+    }
+
+    private User getAuthenticatedUserForUpdate(String email) {
+        if (email == null || email.isBlank()) {
+            throw ApiException.unauthorized("Authentication is required");
+        }
+
+        return userRepository.findByEmailForUpdate(normalizeEmail(email))
                 .orElseThrow(() -> ApiException.unauthorized("Authenticated user not found"));
     }
 

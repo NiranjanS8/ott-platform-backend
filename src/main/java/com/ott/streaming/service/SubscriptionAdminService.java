@@ -17,10 +17,13 @@ import com.ott.streaming.repository.SubscriptionPlanRepository;
 import java.util.Locale;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class SubscriptionAdminService {
 
     private final SubscriptionPlanRepository subscriptionPlanRepository;
@@ -44,7 +47,11 @@ public class SubscriptionAdminService {
 
         SubscriptionPlan plan = new SubscriptionPlan();
         applyPlanInput(plan, normalizedName, input.description(), input.price(), input.durationDays(), input.active());
-        return toPlanPayload(subscriptionPlanRepository.save(plan));
+        try {
+            return toPlanPayload(subscriptionPlanRepository.save(plan));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Subscription plan already exists");
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -60,7 +67,11 @@ public class SubscriptionAdminService {
                 });
 
         applyPlanInput(plan, normalizedName, input.description(), input.price(), input.durationDays(), input.active());
-        return toPlanPayload(subscriptionPlanRepository.save(plan));
+        try {
+            return toPlanPayload(subscriptionPlanRepository.save(plan));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Subscription plan already exists");
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")

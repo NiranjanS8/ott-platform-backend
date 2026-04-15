@@ -26,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -93,6 +94,24 @@ class WatchlistServiceTest {
         when(seriesRepository.existsById(77L)).thenReturn(true);
         when(watchlistItemRepository.existsByUserIdAndContentTypeAndContentId(1L, ContentType.SERIES, 77L))
                 .thenReturn(true);
+
+        assertThatThrownBy(() -> watchlistService.addToWatchlist(
+                "member@example.com",
+                new AddToWatchlistInput(ContentType.SERIES, 77L)
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Content is already in your watchlist");
+    }
+
+    @Test
+    void addToWatchlistTranslatesConstraintRaceToDuplicateError() {
+        User user = buildUser(1L);
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(seriesRepository.existsById(77L)).thenReturn(true);
+        when(watchlistItemRepository.existsByUserIdAndContentTypeAndContentId(1L, ContentType.SERIES, 77L))
+                .thenReturn(false);
+        when(watchlistItemRepository.save(any(WatchlistItem.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_watchlist_user_content"));
 
         assertThatThrownBy(() -> watchlistService.addToWatchlist(
                 "member@example.com",

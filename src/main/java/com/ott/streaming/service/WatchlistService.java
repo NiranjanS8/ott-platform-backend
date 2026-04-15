@@ -12,10 +12,13 @@ import com.ott.streaming.repository.UserRepository;
 import com.ott.streaming.repository.WatchlistItemRepository;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class WatchlistService {
 
     private final WatchlistItemRepository watchlistItemRepository;
@@ -50,7 +53,11 @@ public class WatchlistService {
         item.setContentType(input.contentType());
         item.setContentId(input.contentId());
 
-        return toPayload(watchlistItemRepository.save(item));
+        try {
+            return toPayload(watchlistItemRepository.save(item));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Content is already in your watchlist");
+        }
     }
 
     public Boolean removeFromWatchlist(String email, ContentType contentType, Long contentId) {

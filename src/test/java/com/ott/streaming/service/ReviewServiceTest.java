@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -96,6 +97,25 @@ class ReviewServiceTest {
         when(movieRepository.existsById(42L)).thenReturn(true);
         when(reviewRepository.findByUserIdAndContentTypeAndContentId(1L, ContentType.MOVIE, 42L))
                 .thenReturn(Optional.of(existingReview));
+
+        assertThatThrownBy(() -> reviewService.addReview(
+                "member@example.com",
+                new AddReviewInput(ContentType.MOVIE, 42L, 5, "Another take")
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("You have already reviewed this content");
+    }
+
+    @Test
+    void addReviewTranslatesConstraintRaceToDuplicateError() {
+        User user = buildUser(1L, Role.USER);
+
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(movieRepository.existsById(42L)).thenReturn(true);
+        when(reviewRepository.findByUserIdAndContentTypeAndContentId(1L, ContentType.MOVIE, 42L))
+                .thenReturn(Optional.empty());
+        when(reviewRepository.save(any(Review.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_review_user_content"));
 
         assertThatThrownBy(() -> reviewService.addReview(
                 "member@example.com",

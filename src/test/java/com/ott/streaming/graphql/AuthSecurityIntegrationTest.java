@@ -709,6 +709,7 @@ class AuthSecurityIntegrationTest {
         ReflectionTestUtils.setField(subscription, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
 
         when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailForUpdate("member@example.com")).thenReturn(Optional.of(user));
         when(subscriptionPlanRepository.findById(70L)).thenReturn(Optional.of(plan));
         when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(
                 19L, com.ott.streaming.entity.SubscriptionStatus.ACTIVE

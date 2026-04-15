@@ -57,7 +57,7 @@ class UserSubscriptionServiceTest {
         User user = existingUser();
         SubscriptionPlan plan = activePlan();
 
-        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailForUpdate("member@example.com")).thenReturn(Optional.of(user));
         when(subscriptionPlanRepository.findById(7L)).thenReturn(Optional.of(plan));
         when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(5L, SubscriptionStatus.ACTIVE))
                 .thenReturn(Optional.empty());
@@ -93,7 +93,7 @@ class UserSubscriptionServiceTest {
         existing.setStartDate(Instant.now().minus(2, ChronoUnit.DAYS));
         existing.setEndDate(Instant.now().plus(28, ChronoUnit.DAYS));
 
-        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailForUpdate("member@example.com")).thenReturn(Optional.of(user));
         when(subscriptionPlanRepository.findById(7L)).thenReturn(Optional.of(plan));
         when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(5L, SubscriptionStatus.ACTIVE))
                 .thenReturn(Optional.of(existing));
@@ -111,7 +111,7 @@ class UserSubscriptionServiceTest {
         SubscriptionPlan plan = activePlan();
         plan.setActive(false);
 
-        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailForUpdate("member@example.com")).thenReturn(Optional.of(user));
         when(subscriptionPlanRepository.findById(7L)).thenReturn(Optional.of(plan));
 
         assertThatThrownBy(() -> userSubscriptionService.subscribeToPlan("member@example.com", new SubscribeToPlanInput(7L)))
@@ -179,6 +179,22 @@ class UserSubscriptionServiceTest {
         when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(admin));
 
         assertThat(userSubscriptionService.hasPremiumAccess("member@example.com")).isTrue();
+    }
+
+    @Test
+    void subscribeToPlanUsesLockedUserLookup() {
+        User user = existingUser();
+        SubscriptionPlan plan = activePlan();
+
+        when(userRepository.findByEmailForUpdate("member@example.com")).thenReturn(Optional.of(user));
+        when(subscriptionPlanRepository.findById(7L)).thenReturn(Optional.of(plan));
+        when(userSubscriptionRepository.findFirstByUserIdAndStatusOrderByEndDateDesc(5L, SubscriptionStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+        when(userSubscriptionRepository.save(any(UserSubscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        userSubscriptionService.subscribeToPlan("member@example.com", new SubscribeToPlanInput(7L));
+
+        verify(userRepository).findByEmailForUpdate("member@example.com");
     }
 
     private User existingUser() {

@@ -40,10 +40,13 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class ContentAdminService {
 
     private final GenreRepository genreRepository;
@@ -76,7 +79,11 @@ public class ContentAdminService {
 
         Genre genre = new Genre();
         genre.setName(normalizedName);
-        return toGenrePayload(genreRepository.save(genre));
+        try {
+            return toGenrePayload(genreRepository.save(genre));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Genre already exists");
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -221,7 +228,11 @@ public class ContentAdminService {
         Season season = new Season();
         season.setSeries(series);
         applySeasonInput(season, input.title(), input.seasonNumber());
-        return toSeasonPayload(seasonRepository.save(season));
+        try {
+            return toSeasonPayload(seasonRepository.save(season));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Season number already exists for this series");
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -254,7 +265,11 @@ public class ContentAdminService {
         Episode episode = new Episode();
         episode.setSeason(season);
         applyEpisodeInput(episode, input.title(), input.episodeNumber(), input.description(), input.durationMinutes(), input.releaseDate());
-        return toEpisodePayload(episodeRepository.save(episode));
+        try {
+            return toEpisodePayload(episodeRepository.save(episode));
+        } catch (DataIntegrityViolationException ex) {
+            throw ApiException.duplicateResource("Episode number already exists for this season");
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
