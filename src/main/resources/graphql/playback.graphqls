@@ -1,15 +1,26 @@
 extend type Query {
+  "Checks whether the authenticated user can play the requested content."
   playbackAccess(input: StartPlaybackInput!): PlaybackAccess!
+
+  "Returns the current active playback session for the requested content, if one exists."
   activePlayback(input: StartPlaybackInput!): PlaybackSession
 }
 
 extend type Mutation {
+  "Starts a new playback session for a movie or episode."
   startPlayback(input: StartPlaybackInput!): PlaybackSession!
+
+  "Refreshes an active playback session and syncs progress."
   heartbeatPlayback(input: PlaybackHeartbeatInput!): PlaybackSession!
+
+  "Stops an active playback session and persists final progress."
   stopPlayback(input: StopPlaybackInput!): PlaybackSession!
+
+  "Resumes playback by reusing an active session or creating a new one."
   resumePlayback(input: StartPlaybackInput!): PlaybackSession!
 }
 
+"Resolved playback availability for a specific content target."
 type PlaybackAccess {
   contentType: ContentType!
   contentId: ID!
@@ -22,6 +33,7 @@ type PlaybackAccess {
   activeSession: PlaybackSession
 }
 
+"A persisted playback session for a single movie or episode target."
 type PlaybackSession {
   id: ID!
   userId: ID!
@@ -39,28 +51,56 @@ type PlaybackSession {
   updatedAt: String!
 }
 
+"Input used to identify a playback target."
 input StartPlaybackInput {
+  "Whether the target is a movie or series episode."
   contentType: ContentType!
+
+  "Movie id or series id, depending on content type."
   contentId: ID!
+
+  "Optional season context for series playback."
   seasonId: ID
+
+  "Required episode id for series playback."
   episodeId: ID
 }
 
+"Input used for periodic playback heartbeats."
 input PlaybackHeartbeatInput {
+  "Opaque token identifying the active playback session."
   playbackToken: String!
+
+  "Elapsed playback progress in seconds."
   progressSeconds: Int!
+
+  "Total runtime in seconds."
   durationSeconds: Int!
 }
 
+"Input used to stop playback and record final progress."
 input StopPlaybackInput {
+  "Opaque token identifying the active playback session."
   playbackToken: String!
+
+  "Elapsed playback progress in seconds."
   progressSeconds: Int!
+
+  "Total runtime in seconds."
   durationSeconds: Int!
+
+  "Explicitly marks the session as completed when true."
   completed: Boolean
 }
 
+"Lifecycle states for a playback session."
 enum PlaybackSessionStatus {
+  "The session is active and can receive heartbeats."
   ACTIVE
+
+  "The session was stopped by the user or client."
   STOPPED
+
+  "The session expired and can no longer be reused."
   EXPIRED
 }

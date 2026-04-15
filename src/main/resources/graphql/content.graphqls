@@ -1,39 +1,83 @@
 extend type Query {
+  "Returns all movies in the catalog."
   movies: [Movie!]!
+
+  "Returns a single movie by id."
   movie(id: ID!): Movie
+
+  "Returns all series in the catalog."
   seriesList: [Series!]!
+
+  "Returns a single series by id."
   series(id: ID!): Series
+
+  "Returns a single season by id."
   season(id: ID!): Season
+
+  "Returns a single episode by id."
   episode(id: ID!): Episode
+
+  "Searches the catalog with filtering, sorting, and pagination."
   discoverCatalog(input: CatalogQueryInput!): CatalogPage!
 }
 
 extend type Mutation {
+  "Creates a new genre. Admin only."
   createGenre(input: CreateGenreInput!): Genre!
+
+  "Updates an existing genre. Admin only."
   updateGenre(id: ID!, input: UpdateGenreInput!): Genre!
+
+  "Deletes a genre by id. Admin only."
   deleteGenre(id: ID!): Boolean!
 
+  "Creates a new person record. Admin only."
   createPerson(input: CreatePersonInput!): Person!
+
+  "Updates an existing person record. Admin only."
   updatePerson(id: ID!, input: UpdatePersonInput!): Person!
+
+  "Deletes a person by id. Admin only."
   deletePerson(id: ID!): Boolean!
 
+  "Creates a new movie. Admin only."
   createMovie(input: CreateMovieInput!): Movie!
+
+  "Updates an existing movie. Admin only."
   updateMovie(id: ID!, input: UpdateMovieInput!): Movie!
+
+  "Deletes a movie by id. Admin only."
   deleteMovie(id: ID!): Boolean!
 
+  "Creates a new series. Admin only."
   createSeries(input: CreateSeriesInput!): Series!
+
+  "Updates an existing series. Admin only."
   updateSeries(id: ID!, input: UpdateSeriesInput!): Series!
+
+  "Deletes a series by id. Admin only."
   deleteSeries(id: ID!): Boolean!
 
+  "Creates a new season under a series. Admin only."
   createSeason(input: CreateSeasonInput!): Season!
+
+  "Updates an existing season. Admin only."
   updateSeason(id: ID!, input: UpdateSeasonInput!): Season!
+
+  "Deletes a season by id. Admin only."
   deleteSeason(id: ID!): Boolean!
 
+  "Creates a new episode under a season. Admin only."
   createEpisode(input: CreateEpisodeInput!): Episode!
+
+  "Updates an existing episode. Admin only."
   updateEpisode(id: ID!, input: UpdateEpisodeInput!): Episode!
+
+  "Deletes an episode by id. Admin only."
   deleteEpisode(id: ID!): Boolean!
 }
 
+"A genre that can be assigned to movies and series."
 type Genre {
   id: ID!
   name: String!
@@ -41,6 +85,7 @@ type Genre {
   updatedAt: String!
 }
 
+"A person associated with content, such as cast or director."
 type Person {
   id: ID!
   name: String!
@@ -50,6 +95,7 @@ type Person {
   updatedAt: String!
 }
 
+"A standalone movie in the catalog."
 type Movie {
   id: ID!
   title: String!
@@ -65,6 +111,7 @@ type Movie {
   updatedAt: String!
 }
 
+"A serialized show made up of seasons and episodes."
 type Series {
   id: ID!
   title: String!
@@ -81,6 +128,7 @@ type Series {
   updatedAt: String!
 }
 
+"A season belonging to a series."
 type Season {
   id: ID!
   title: String!
@@ -90,6 +138,7 @@ type Season {
   updatedAt: String!
 }
 
+"An episode belonging to a season."
 type Episode {
   id: ID!
   title: String!
@@ -101,6 +150,7 @@ type Episode {
   updatedAt: String!
 }
 
+"Lightweight catalog item returned by discovery queries."
 type CatalogItem {
   id: ID!
   contentType: ContentType!
@@ -114,11 +164,13 @@ type CatalogItem {
   averageRating: Float
 }
 
+"Paginated catalog response."
 type CatalogPage {
   items: [CatalogItem!]!
   pageInfo: PaginationInfo!
 }
 
+"Pagination metadata for a page response."
 type PaginationInfo {
   page: Int!
   size: Int!
@@ -128,56 +180,97 @@ type PaginationInfo {
   hasPrevious: Boolean!
 }
 
+"Supported catalog sort strategies."
 enum CatalogSortOption {
+  "Newest content first."
   LATEST
+
+  "Oldest content first."
   OLDEST
+
+  "Highest rated content first."
   TOP_RATED
+
+  "Title in ascending alphabetical order."
   TITLE_ASC
+
+  "Title in descending alphabetical order."
   TITLE_DESC
 }
 
+"Optional filters used for catalog discovery."
 input CatalogFilterInput {
+  "Restrict results to a specific genre."
   genreId: ID
+
+  "Restrict results to a specific language."
   language: String
+
+  "Restrict results to a release year."
   releaseYear: Int
+
+  "Minimum average rating to include."
   minRating: Float
+
+  "Maximum average rating to include."
   maxRating: Float
+
+  "Restrict results to a single content type."
   contentType: ContentType
+
+  "Restrict results to free or premium content."
   accessLevel: ContentAccessLevel
 }
 
+"Page request parameters for catalog discovery."
 input PaginationInput {
+  "Zero-based page number."
   page: Int!
+
+  "Maximum number of items to return."
   size: Int!
 }
 
+"Composite query input for catalog discovery."
 input CatalogQueryInput {
+  "Free-text title search."
   search: String
+
+  "Optional filter constraints."
   filter: CatalogFilterInput
+
+  "Sort strategy to apply."
   sort: CatalogSortOption!
+
+  "Pagination settings to apply."
   pagination: PaginationInput!
 }
 
+"Input used to create a genre."
 input CreateGenreInput {
   name: String!
 }
 
+"Input used to update a genre."
 input UpdateGenreInput {
   name: String!
 }
 
+"Input used to create a person."
 input CreatePersonInput {
   name: String!
   biography: String
   profileImageUrl: String
 }
 
+"Input used to update a person."
 input UpdatePersonInput {
   name: String!
   biography: String
   profileImageUrl: String
 }
 
+"Input used to create a movie."
 input CreateMovieInput {
   title: String!
   description: String
@@ -190,6 +283,7 @@ input CreateMovieInput {
   directorIds: [ID!]!
 }
 
+"Input used to update a movie."
 input UpdateMovieInput {
   title: String!
   description: String
@@ -202,6 +296,7 @@ input UpdateMovieInput {
   directorIds: [ID!]!
 }
 
+"Input used to create a series."
 input CreateSeriesInput {
   title: String!
   description: String
@@ -214,6 +309,7 @@ input CreateSeriesInput {
   directorIds: [ID!]!
 }
 
+"Input used to update a series."
 input UpdateSeriesInput {
   title: String!
   description: String
@@ -226,17 +322,20 @@ input UpdateSeriesInput {
   directorIds: [ID!]!
 }
 
+"Input used to create a season within a series."
 input CreateSeasonInput {
   seriesId: ID!
   title: String!
   seasonNumber: Int!
 }
 
+"Input used to update a season."
 input UpdateSeasonInput {
   title: String!
   seasonNumber: Int!
 }
 
+"Input used to create an episode within a season."
 input CreateEpisodeInput {
   seasonId: ID!
   title: String!
@@ -246,6 +345,7 @@ input CreateEpisodeInput {
   releaseDate: String
 }
 
+"Input used to update an episode."
 input UpdateEpisodeInput {
   title: String!
   episodeNumber: Int!

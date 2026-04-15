@@ -1,11 +1,22 @@
 type Query {
+  "Returns a simple liveness value for operational health checks."
   health: String!
+
+  "Returns basic runtime metadata about the application."
   appInfo: AppInfo!
+
+  "Echoes the provided message to verify GraphQL connectivity."
   ping(message: String): String!
 }
 
+"Basic application metadata exposed for diagnostics and tooling."
 type AppInfo {
+  "Configured application name."
   name: String!
+
+  "Active runtime environment or profile."
   environment: String!
+
+  "Relative path where the GraphQL endpoint is exposed."
   graphqlPath: String!
 }

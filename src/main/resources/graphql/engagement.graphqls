@@ -1,16 +1,29 @@
 extend type Query {
+  "Returns the authenticated user's saved watchlist."
   myWatchlist: [WatchlistItem!]!
+
+  "Returns in-progress items ordered by most recent activity."
   continueWatching: [WatchProgress!]!
+
+  "Returns the authenticated user's watch history."
   watchHistory: [WatchProgress!]!
 }
 
 extend type Mutation {
+  "Adds a content item to the authenticated user's watchlist."
   addToWatchlist(input: AddToWatchlistInput!): WatchlistItem!
+
+  "Removes a content item from the authenticated user's watchlist."
   removeFromWatchlist(contentType: ContentType!, contentId: ID!): Boolean!
+
+  "Creates or updates watch progress for a movie or episode."
   updateWatchProgress(input: UpdateWatchProgressInput!): WatchProgress!
+
+  "Marks an existing progress record as completed."
   markAsCompleted(contentType: ContentType!, contentId: ID!, episodeId: ID): WatchProgress!
 }
 
+"A single watchlist entry owned by a user."
 type WatchlistItem {
   id: ID!
   userId: ID!
@@ -20,6 +33,7 @@ type WatchlistItem {
   updatedAt: String!
 }
 
+"Playback progress for a movie or episode."
 type WatchProgress {
   id: ID!
   userId: ID!
@@ -35,11 +49,13 @@ type WatchProgress {
   updatedAt: String!
 }
 
+"Input used to add a content item to a watchlist."
 input AddToWatchlistInput {
   contentType: ContentType!
   contentId: ID!
 }
 
+"Input used to create or update watch progress."
 input UpdateWatchProgressInput {
   contentType: ContentType!
   contentId: ID!

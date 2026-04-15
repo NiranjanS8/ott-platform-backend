@@ -1,23 +1,36 @@
 extend type Query {
+  "Returns the authenticated user's current active subscription, if present."
   currentSubscription: UserSubscription
 }
 
 extend type Mutation {
+  "Creates a new subscription plan. Admin only."
   createSubscriptionPlan(input: CreateSubscriptionPlanInput!): SubscriptionPlan!
+
+  "Updates an existing subscription plan. Admin only."
   updateSubscriptionPlan(id: ID!, input: UpdateSubscriptionPlanInput!): SubscriptionPlan!
+
+  "Updates the access level of a movie. Admin only."
   updateMovieAccessLevel(id: ID!, input: UpdateContentAccessInput!): Movie!
+
+  "Updates the access level of a series. Admin only."
   updateSeriesAccessLevel(id: ID!, input: UpdateContentAccessInput!): Series!
+
+  "Subscribes the authenticated user to a plan."
   subscribeToPlan(input: SubscribeToPlanInput!): UserSubscription!
 }
 
 extend type Movie {
+  "Access level required to play this movie."
   accessLevel: ContentAccessLevel!
 }
 
 extend type Series {
+  "Access level required to play this series."
   accessLevel: ContentAccessLevel!
 }
 
+"A purchasable or assignable subscription plan."
 type SubscriptionPlan {
   id: ID!
   name: String!
@@ -29,6 +42,7 @@ type SubscriptionPlan {
   updatedAt: String!
 }
 
+"A user's subscription lifecycle record."
 type UserSubscription {
   id: ID!
   userId: ID!
@@ -40,17 +54,28 @@ type UserSubscription {
   updatedAt: String!
 }
 
+"Content access tiers used by playback authorization."
 enum ContentAccessLevel {
+  "Playable without a premium subscription."
   FREE
+
+  "Requires premium access for playback."
   PREMIUM
 }
 
+"Possible states of a user subscription."
 enum SubscriptionStatus {
+  "Subscription is currently active."
   ACTIVE
+
+  "Subscription was canceled before natural expiry."
   CANCELED
+
+  "Subscription has expired."
   EXPIRED
 }
 
+"Input used to create a subscription plan."
 input CreateSubscriptionPlanInput {
   name: String!
   description: String
@@ -59,6 +84,7 @@ input CreateSubscriptionPlanInput {
   active: Boolean!
 }
 
+"Input used to update a subscription plan."
 input UpdateSubscriptionPlanInput {
   name: String!
   description: String
@@ -67,10 +93,12 @@ input UpdateSubscriptionPlanInput {
   active: Boolean!
 }
 
+"Input used by a user to subscribe to a plan."
 input SubscribeToPlanInput {
   planId: ID!
 }
 
+"Input used to update content access restrictions."
 input UpdateContentAccessInput {
   accessLevel: ContentAccessLevel!
 }

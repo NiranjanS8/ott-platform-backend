@@ -1,39 +1,75 @@
 extend type Query {
+  "Returns the currently authenticated user."
   me: AuthUser!
+
+  "Returns a simple admin-only status string for authorization checks."
   adminStatus: String!
 }
 
 type Mutation {
+  "Registers a new user account and returns an access token."
   register(input: RegisterInput!): AuthResponse!
+
+  "Authenticates an existing user and returns an access token."
   login(input: LoginInput!): AuthResponse!
 }
 
+"Input required to create a user account."
 input RegisterInput {
+  "Display name for the new user."
   name: String!
+
+  "Unique email address used as the login identifier."
   email: String!
+
+  "Raw password that must satisfy the configured password policy."
   password: String!
 }
 
+"Input required to authenticate a user."
 input LoginInput {
+  "Registered email address."
   email: String!
+
+  "Raw password for the account."
   password: String!
 }
 
+"Authentication payload returned after register or login."
 type AuthResponse {
+  "JWT access token to send as a Bearer token."
   accessToken: String!
+
+  "Authenticated user profile."
   user: AuthUser!
 }
 
+"Authenticated user profile information."
 type AuthUser {
+  "Unique user identifier."
   id: ID!
+
+  "Display name of the user."
   name: String!
+
+  "Unique email address of the user."
   email: String!
+
+  "Authorization role assigned to the user."
   role: Role!
+
+  "Timestamp when the user was created."
   createdAt: String!
+
+  "Timestamp when the user was last updated."
   updatedAt: String!
 }
 
+"Available application roles."
 enum Role {
+  "Regular authenticated user."
   USER
+
+  "Administrator with elevated privileges."
   ADMIN
 }

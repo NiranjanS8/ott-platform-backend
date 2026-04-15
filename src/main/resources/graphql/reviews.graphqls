@@ -1,21 +1,30 @@
 extend type Query {
+  "Returns reviews for the requested movie or series."
   reviews(contentType: ContentType!, contentId: ID!): [Review!]!
 }
 
 extend type Mutation {
+  "Creates a new review for the authenticated user."
   addReview(input: AddReviewInput!): Review!
+
+  "Updates a review owned by the authenticated user."
   updateReview(id: ID!, input: UpdateReviewInput!): Review!
+
+  "Deletes a review when the current user is allowed to do so."
   deleteReview(id: ID!): Boolean!
 }
 
 extend type Movie {
+  "Aggregate rating data for the movie."
   ratingSummary: RatingSummary!
 }
 
 extend type Series {
+  "Aggregate rating data for the series."
   ratingSummary: RatingSummary!
 }
 
+"A user review for a movie or series."
 type Review {
   id: ID!
   userId: ID!
@@ -27,16 +36,22 @@ type Review {
   updatedAt: String!
 }
 
+"Aggregate review statistics for a content item."
 type RatingSummary {
   averageRating: Float
   reviewCount: Int!
 }
 
+"Supported reviewable content types."
 enum ContentType {
+  "A standalone movie."
   MOVIE
+
+  "A serialized show."
   SERIES
 }
 
+"Input used to create a review."
 input AddReviewInput {
   contentType: ContentType!
   contentId: ID!
@@ -44,6 +59,7 @@ input AddReviewInput {
   comment: String
 }
 
+"Input used to update an existing review."
 input UpdateReviewInput {
   rating: Int!
   comment: String
