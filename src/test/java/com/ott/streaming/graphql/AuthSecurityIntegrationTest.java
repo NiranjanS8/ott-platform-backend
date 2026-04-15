@@ -141,7 +141,8 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/errors").isArray()).isTrue();
-        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+        assertThat(json.at("/errors/0/message").asText()).isEqualTo("Forbidden");
+        assertThat(json.at("/errors/0/extensions/code").asText()).isEqualTo("FORBIDDEN");
     }
 
     @Test
@@ -173,7 +174,8 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/errors").isArray()).isTrue();
-        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+        assertThat(json.at("/errors/0/message").asText()).isEqualTo("Forbidden");
+        assertThat(json.at("/errors/0/extensions/code").asText()).isEqualTo("FORBIDDEN");
     }
 
     @Test
@@ -621,7 +623,8 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/errors").isArray()).isTrue();
-        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+        assertThat(json.at("/errors/0/message").asText()).isEqualTo("Forbidden");
+        assertThat(json.at("/errors/0/extensions/code").asText()).isEqualTo("FORBIDDEN");
     }
 
     @Test
@@ -680,7 +683,8 @@ class AuthSecurityIntegrationTest {
                 """, user);
 
         assertThat(json.at("/errors").isArray()).isTrue();
-        assertThat(json.at("/errors/0/message").asText()).contains("Access Denied");
+        assertThat(json.at("/errors/0/message").asText()).isEqualTo("Forbidden");
+        assertThat(json.at("/errors/0/extensions/code").asText()).isEqualTo("FORBIDDEN");
     }
 
     @Test

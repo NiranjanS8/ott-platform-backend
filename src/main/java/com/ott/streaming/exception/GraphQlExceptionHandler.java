@@ -4,8 +4,11 @@ import graphql.GraphQLError;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.validation.ConstraintViolationException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter;
@@ -18,11 +21,13 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
 
     @Override
     protected GraphQLError resolveToSingleError(Throwable ex, DataFetchingEnvironment env) {
-        if (ex instanceof ApiException apiException) {
+        Throwable resolved = unwrap(ex);
+
+        if (resolved instanceof ApiException apiException) {
             return buildError(env, apiException.getErrorType(), apiException.getMessage());
         }
 
-        if (ex instanceof ConstraintViolationException constraintViolationException) {
+        if (resolved instanceof ConstraintViolationException constraintViolationException) {
             String message = constraintViolationException.getConstraintViolations().stream()
                     .map(violation -> violation.getMessage())
                     .distinct()
@@ -31,11 +36,11 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
             return buildError(env, ErrorType.BAD_REQUEST, "Validation failed: " + message);
         }
 
-        if (ex instanceof IllegalArgumentException illegalArgumentException) {
+        if (resolved instanceof IllegalArgumentException illegalArgumentException) {
             return buildError(env, ErrorType.BAD_REQUEST, illegalArgumentException.getMessage());
         }
 
-        if (ex instanceof DataIntegrityViolationException dataIntegrityViolationException) {
+        if (resolved instanceof DataIntegrityViolationException dataIntegrityViolationException) {
             return buildError(
                     env,
                     ErrorType.BAD_REQUEST,
@@ -43,8 +48,8 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
             );
         }
 
-        if (ex instanceof AccessDeniedException) {
-            return buildError(env, ErrorType.FORBIDDEN, "Access Denied");
+        if (resolved instanceof AccessDeniedException) {
+            return buildError(env, ErrorType.FORBIDDEN, "Forbidden");
         }
 
         return buildError(env, ErrorType.INTERNAL_ERROR, "Unexpected server error");
@@ -71,5 +76,22 @@ public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter
         }
 
         return "Request violates data integrity constraints";
+    }
+
+    private Throwable unwrap(Throwable ex) {
+        Throwable current = ex;
+
+        while (current != null && shouldUnwrap(current) && current.getCause() != null) {
+            current = current.getCause();
+        }
+
+        return current == null ? ex : current;
+    }
+
+    private boolean shouldUnwrap(Throwable ex) {
+        return ex instanceof CompletionException
+                || ex instanceof ExecutionException
+                || ex instanceof InvocationTargetException
+                || ex instanceof java.lang.reflect.UndeclaredThrowableException;
     }
 }
