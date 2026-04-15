@@ -29,6 +29,7 @@ import com.ott.streaming.repository.SeriesRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -193,8 +194,8 @@ class ContentQueryServiceTest {
         when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 series(2L, "Dark", ContentAccessLevel.PREMIUM)
         ));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 2L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(1L))).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.SERIES, List.of(2L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 " dark ",
@@ -220,9 +221,8 @@ class ContentQueryServiceTest {
         when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(
                 series(3L, "Gamma", ContentAccessLevel.FREE)
         ));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 3L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(1L, 2L))).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.SERIES, List.of(3L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -248,8 +248,7 @@ class ContentQueryServiceTest {
                 movie(2L, "Beta", ContentAccessLevel.FREE)
         ));
         when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(1L, 2L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -284,7 +283,7 @@ class ContentQueryServiceTest {
         wrongTypeSeries.setLanguage("English");
 
         when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(matchingMovie));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(1L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -310,7 +309,7 @@ class ContentQueryServiceTest {
         wrongYearSeries.setLanguage("German");
 
         when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of(matchingSeries));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.SERIES, 4L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.SERIES, List.of(4L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -337,10 +336,8 @@ class ContentQueryServiceTest {
 
         when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(highRatedMovie, lowRatedMovie));
         when(seriesRepository.findAll(any(Specification.class))).thenReturn(List.of());
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 1L))
-                .thenReturn(List.of(review(5), review(4)));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 2L))
-                .thenReturn(List.of(review(2), review(3)));
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(1L, 2L)))
+                .thenReturn(List.of(review(1L, 5), review(1L, 4), review(2L, 2), review(2L, 3)));
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -359,7 +356,7 @@ class ContentQueryServiceTest {
     void discoverCatalogSkipsSeriesRepositoryWhenMovieTypeRequested() {
         Movie movie = movie(11L, "Arrival", ContentAccessLevel.FREE);
         when(movieRepository.findAll(any(Specification.class))).thenReturn(List.of(movie));
-        when(reviewRepository.findByContentTypeAndContentId(ContentType.MOVIE, 11L)).thenReturn(List.of());
+        when(reviewRepository.findByContentTypeAndContentIdIn(ContentType.MOVIE, List.of(11L))).thenReturn(List.of());
 
         CatalogPagePayload page = contentQueryService.discoverCatalog(new CatalogQueryInput(
                 null,
@@ -425,8 +422,9 @@ class ContentQueryServiceTest {
         return genre;
     }
 
-    private com.ott.streaming.entity.Review review(int rating) {
+    private com.ott.streaming.entity.Review review(Long contentId, int rating) {
         com.ott.streaming.entity.Review review = new com.ott.streaming.entity.Review();
+        review.setContentId(contentId);
         review.setRating(rating);
         return review;
     }

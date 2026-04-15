@@ -29,8 +29,10 @@ import com.ott.streaming.repository.SeriesRepository;
 import com.ott.streaming.repository.spec.MovieSpecifications;
 import com.ott.streaming.repository.spec.SeriesSpecifications;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -325,26 +327,40 @@ public class ContentQueryService {
     }
 
     private Map<ContentKey, Double> buildAverageRatings(List<Movie> movies, List<Series> seriesList) {
-        Map<ContentKey, Double> ratings = new java.util.HashMap<>();
-        movies.forEach(movie -> ratings.put(
-                new ContentKey(ContentType.MOVIE, movie.getId()),
-                averageRating(ContentType.MOVIE, movie.getId())
+        Map<ContentKey, Double> ratings = new HashMap<>();
+        ratings.putAll(aggregateAverageRatings(
+                ContentType.MOVIE,
+                movies.stream().map(Movie::getId).toList()
         ));
-        seriesList.forEach(series -> ratings.put(
-                new ContentKey(ContentType.SERIES, series.getId()),
-                averageRating(ContentType.SERIES, series.getId())
+        ratings.putAll(aggregateAverageRatings(
+                ContentType.SERIES,
+                seriesList.stream().map(Series::getId).toList()
         ));
         return ratings;
     }
 
-    private Double averageRating(ContentType contentType, Long contentId) {
-        return reviewRepository.findByContentTypeAndContentId(contentType, contentId).stream()
-                .mapToInt(review -> review.getRating())
-                .average()
-                .stream()
-                .boxed()
-                .findFirst()
-                .orElse(null);
+    private Map<ContentKey, Double> aggregateAverageRatings(ContentType contentType, Collection<Long> contentIds) {
+        Map<ContentKey, Double> averages = new HashMap<>();
+        if (contentIds.isEmpty()) {
+            return averages;
+        }
+
+        Map<Long, List<Integer>> ratingsByContentId = new HashMap<>();
+        contentIds.forEach(id -> ratingsByContentId.put(id, new ArrayList<>()));
+
+        reviewRepository.findByContentTypeAndContentIdIn(contentType, contentIds)
+                .forEach(review -> ratingsByContentId
+                        .computeIfAbsent(review.getContentId(), ignored -> new ArrayList<>())
+                        .add(review.getRating()));
+
+        ratingsByContentId.forEach((contentId, values) -> averages.put(
+                new ContentKey(contentType, contentId),
+                values.isEmpty()
+                        ? null
+                        : values.stream().mapToInt(Integer::intValue).average().orElse(0.0)
+        ));
+
+        return averages;
     }
 
     private boolean shouldIncludeMovies(CatalogFilterInput filter) {
