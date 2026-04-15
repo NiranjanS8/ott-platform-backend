@@ -9,6 +9,7 @@ import com.ott.streaming.dto.subscription.SubscriptionPlanPayload;
 import com.ott.streaming.dto.subscription.UserSubscriptionPayload;
 import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.SubscriptionStatus;
+import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.SubscriptionAdminService;
 import com.ott.streaming.service.UserSubscriptionService;
@@ -93,6 +94,34 @@ class SubscriptionGraphQlControllerTest {
                 .path("createSubscriptionPlan.id").entity(String.class).isEqualTo("1")
                 .path("createSubscriptionPlan.name").entity(String.class).isEqualTo("Premium Monthly")
                 .path("createSubscriptionPlan.durationDays").entity(Integer.class).isEqualTo(30);
+    }
+
+    @Test
+    @WithMockUser(username = "admin@example.com", roles = "ADMIN")
+    void createSubscriptionPlanSurfacesDuplicateErrorWithStableGraphQlShape() {
+        when(subscriptionAdminService.createSubscriptionPlan(any()))
+                .thenThrow(ApiException.duplicateResource("Subscription plan already exists"));
+
+        graphQlTester.document("""
+                mutation {
+                  createSubscriptionPlan(input: {
+                    name: "Premium Monthly"
+                    description: "Access for 30 days"
+                    price: 9.99
+                    durationDays: 30
+                    active: true
+                  }) {
+                    id
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).isEqualTo("Subscription plan already exists");
+                    assertThat(errors.getFirst().getExtensions()).containsEntry("code", "BAD_REQUEST");
+                });
     }
 
     @Test

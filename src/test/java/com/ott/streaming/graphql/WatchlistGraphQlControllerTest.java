@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.engagement.WatchlistItemPayload;
 import com.ott.streaming.entity.ContentType;
+import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.WatchlistService;
 import java.time.Instant;
@@ -79,6 +80,31 @@ class WatchlistGraphQlControllerTest {
                 .errors()
                 .satisfy(errors -> {
                     assertThat(errors).isNotEmpty();
+                });
+    }
+
+    @Test
+    @WithMockUser(username = "member@example.com", roles = "USER")
+    void addToWatchlistSurfacesDuplicateErrorWithStableGraphQlShape() {
+        when(watchlistService.addToWatchlist(eq("member@example.com"), any()))
+                .thenThrow(ApiException.duplicateResource("Content is already in your watchlist"));
+
+        graphQlTester.document("""
+                mutation {
+                  addToWatchlist(input: {
+                    contentType: MOVIE
+                    contentId: "10"
+                  }) {
+                    id
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).isEqualTo("Content is already in your watchlist");
+                    assertThat(errors.getFirst().getExtensions()).containsEntry("code", "BAD_REQUEST");
                 });
     }
 

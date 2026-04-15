@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.ott.streaming.dto.review.ReviewPayload;
+import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.exception.GraphQlExceptionHandler;
 import com.ott.streaming.service.ReviewService;
 import com.ott.streaming.entity.ContentType;
@@ -17,6 +18,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @GraphQlTest(ReviewGraphQlController.class)
 @Import(GraphQlExceptionHandler.class)
@@ -66,6 +69,33 @@ class ReviewGraphQlControllerTest {
                 .path("addReview.contentType").entity(String.class).isEqualTo("MOVIE")
                 .path("addReview.rating").entity(Integer.class).isEqualTo(5)
                 .path("addReview.comment").entity(String.class).isEqualTo("Loved it");
+    }
+
+    @Test
+    @WithMockUser(username = "member@example.com", roles = "USER")
+    void addReviewSurfacesDuplicateErrorWithStableGraphQlShape() {
+        when(reviewService.addReview(eq("member@example.com"), any()))
+                .thenThrow(ApiException.duplicateResource("You have already reviewed this content"));
+
+        graphQlTester.document("""
+                mutation {
+                  addReview(input: {
+                    contentType: MOVIE
+                    contentId: "10"
+                    rating: 5
+                    comment: "Loved it"
+                  }) {
+                    id
+                  }
+                }
+                """)
+                .execute()
+                .errors()
+                .satisfy(errors -> {
+                    assertThat(errors).hasSize(1);
+                    assertThat(errors.getFirst().getMessage()).isEqualTo("You have already reviewed this content");
+                    assertThat(errors.getFirst().getExtensions()).containsEntry("code", "BAD_REQUEST");
+                });
     }
 
     @Test
