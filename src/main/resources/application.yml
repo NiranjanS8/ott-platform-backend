@@ -38,7 +38,7 @@ app:
   environment: ${APP_ENV:local}
   graphql:
     max-query-depth: ${GRAPHQL_MAX_QUERY_DEPTH:8}
-    log-requests: ${GRAPHQL_LOG_REQUESTS:true}
+    log-requests: ${GRAPHQL_LOG_REQUESTS:false}
   playback:
     base-url: ${PLAYBACK_BASE_URL:https://stream.ott.local/playback}
     session-ttl: ${PLAYBACK_SESSION_TTL:PT15M}
@@ -47,7 +47,7 @@ app:
 security:
   jwt:
     issuer: ${JWT_ISSUER:ott-streaming}
-    secret: ${JWT_SECRET:Y2hhbmdlLW1lLWJlZm9yZS1hdXRoLWNoYW5nZS1tZS1iZWZvcmUtYXV0aA==}
+    secret: ${JWT_SECRET}
     access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:PT1H}
 
 ---
@@ -61,8 +61,16 @@ spring:
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:Y2hhbmdlLW1lLWZvci1sb2NhbC1kZXYtb25seS1jaGFuZ2UtbWU=}
+
 ---
 spring:
   config:
     activate:
       on-profile: test
+
+security:
+  jwt:
+    secret: test-secret-change-me-before-shipping

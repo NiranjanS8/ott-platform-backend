@@ -9,7 +9,10 @@ import static org.mockito.Mockito.when;
 import com.ott.streaming.dto.engagement.UpdateWatchProgressInput;
 import com.ott.streaming.dto.engagement.WatchProgressPayload;
 import com.ott.streaming.entity.ContentType;
+import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Role;
+import com.ott.streaming.entity.Season;
+import com.ott.streaming.entity.Series;
 import com.ott.streaming.entity.User;
 import com.ott.streaming.entity.WatchProgress;
 import com.ott.streaming.exception.ApiException;
@@ -100,10 +103,10 @@ class WatchProgressServiceTest {
     @Test
     void updateWatchProgressCreatesSeriesEpisodeProgress() {
         User user = buildUser(1L);
+        Episode episode = buildEpisode(9L, 8L, 77L);
         when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
         when(seriesRepository.existsById(77L)).thenReturn(true);
-        when(seasonRepository.existsById(8L)).thenReturn(true);
-        when(episodeRepository.existsById(9L)).thenReturn(true);
+        when(episodeRepository.findWithSeasonAndSeriesById(9L)).thenReturn(Optional.of(episode));
         when(watchProgressRepository.findByUserIdAndContentTypeAndContentIdAndEpisodeId(
                 1L, ContentType.SERIES, 77L, 9L
         )).thenReturn(Optional.empty());
@@ -124,6 +127,22 @@ class WatchProgressServiceTest {
         assertThat(payload.seasonId()).isEqualTo(8L);
         assertThat(payload.episodeId()).isEqualTo(9L);
         assertThat(payload.completed()).isFalse();
+    }
+
+    @Test
+    void updateWatchProgressRejectsSeriesEpisodeFromDifferentSeries() {
+        User user = buildUser(1L);
+        Episode episode = buildEpisode(9L, 8L, 99L);
+        when(userRepository.findByEmail("member@example.com")).thenReturn(Optional.of(user));
+        when(seriesRepository.existsById(77L)).thenReturn(true);
+        when(episodeRepository.findWithSeasonAndSeriesById(9L)).thenReturn(Optional.of(episode));
+
+        assertThatThrownBy(() -> watchProgressService.updateWatchProgress(
+                "member@example.com",
+                new UpdateWatchProgressInput(ContentType.SERIES, 77L, 8L, 9L, 1800, 3600)
+        ))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Episode does not belong to the requested series");
     }
 
     @Test
@@ -264,5 +283,24 @@ class WatchProgressServiceTest {
         ReflectionTestUtils.setField(progress, "createdAt", Instant.parse("2026-04-11T10:00:00Z"));
         ReflectionTestUtils.setField(progress, "updatedAt", Instant.parse("2026-04-11T10:00:00Z"));
         return progress;
+    }
+
+    private Episode buildEpisode(Long episodeId, Long seasonId, Long seriesId) {
+        Series series = new Series();
+        series.setId(seriesId);
+        series.setTitle("Series");
+
+        Season season = new Season();
+        season.setId(seasonId);
+        season.setTitle("Season 1");
+        season.setSeasonNumber(1);
+        season.setSeries(series);
+
+        Episode episode = new Episode();
+        episode.setId(episodeId);
+        episode.setTitle("Episode 1");
+        episode.setEpisodeNumber(1);
+        episode.setSeason(season);
+        return episode;
     }
 }

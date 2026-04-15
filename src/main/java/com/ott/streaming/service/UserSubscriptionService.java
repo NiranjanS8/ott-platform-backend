@@ -16,8 +16,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import org.springframework.graphql.execution.ErrorType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class UserSubscriptionService {
 
     private final UserSubscriptionRepository userSubscriptionRepository;

@@ -3,6 +3,7 @@ package com.ott.streaming.service;
 import com.ott.streaming.dto.engagement.UpdateWatchProgressInput;
 import com.ott.streaming.dto.engagement.WatchProgressPayload;
 import com.ott.streaming.entity.ContentType;
+import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.User;
 import com.ott.streaming.entity.WatchProgress;
 import com.ott.streaming.exception.ApiException;
@@ -17,8 +18,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 public class WatchProgressService {
 
     private final WatchProgressRepository watchProgressRepository;
@@ -166,12 +169,15 @@ public class WatchProgressService {
             throw ApiException.validation("Series progress requires an episode id");
         }
 
-        if (!episodeRepository.existsById(input.episodeId())) {
-            throw ApiException.notFound("Episode not found");
+        Episode episode = episodeRepository.findWithSeasonAndSeriesById(input.episodeId())
+                .orElseThrow(() -> ApiException.notFound("Episode not found"));
+
+        if (!episode.getSeason().getSeries().getId().equals(input.contentId())) {
+            throw ApiException.validation("Episode does not belong to the requested series");
         }
 
-        if (input.seasonId() != null && !seasonRepository.existsById(input.seasonId())) {
-            throw ApiException.notFound("Season not found");
+        if (input.seasonId() != null && !episode.getSeason().getId().equals(input.seasonId())) {
+            throw ApiException.validation("Episode does not belong to the requested season");
         }
     }
 

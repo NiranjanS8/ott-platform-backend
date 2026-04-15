@@ -37,7 +37,7 @@ public class GraphQlRequestLoggingInterceptor implements WebGraphQlInterceptor {
                 operationName(request),
                 operationType(request),
                 request.getVariables().keySet(),
-                documentSnippet(request.getDocument())
+                documentSnippet(request)
         );
 
         return chain.next(request)
@@ -79,7 +79,12 @@ public class GraphQlRequestLoggingInterceptor implements WebGraphQlInterceptor {
         return "query";
     }
 
-    private String documentSnippet(String document) {
+    private String documentSnippet(WebGraphQlRequest request) {
+        if (isSensitiveOperation(request)) {
+            return "<redacted>";
+        }
+
+        String document = request.getDocument();
         if (document == null || document.isBlank()) {
             return "";
         }
@@ -88,6 +93,15 @@ public class GraphQlRequestLoggingInterceptor implements WebGraphQlInterceptor {
         return normalized.length() <= DOCUMENT_SNIPPET_LIMIT
                 ? normalized
                 : normalized.substring(0, DOCUMENT_SNIPPET_LIMIT) + "...";
+    }
+
+    private boolean isSensitiveOperation(WebGraphQlRequest request) {
+        String normalized = request.getDocument() == null ? "" : request.getDocument().toLowerCase(Locale.ROOT);
+        String operationName = operationName(request).toLowerCase(Locale.ROOT);
+        return normalized.contains("login(")
+                || normalized.contains("register(")
+                || "login".equals(operationName)
+                || "register".equals(operationName);
     }
 
     private long elapsedMillis(long startedAt) {
