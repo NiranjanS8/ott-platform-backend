@@ -764,7 +764,7 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
-    void premiumMovieQueryIsBlockedWithoutActiveSubscription() throws Exception {
+    void premiumMovieQueryReturnsMetadataWithoutActiveSubscription() throws Exception {
         Movie movie = new Movie();
         movie.setId(90L);
         movie.setTitle("Premium Movie");
@@ -784,8 +784,10 @@ class AuthSecurityIntegrationTest {
                 }
                 """);
 
-        assertThat(json.at("/errors").isArray()).isTrue();
-        assertThat(json.at("/errors/0/message").asText()).contains("Premium subscription required");
+        assertThat(json.at("/errors").isMissingNode()).isTrue();
+        assertThat(json.at("/data/movie/id").asText()).isEqualTo("90");
+        assertThat(json.at("/data/movie/title").asText()).isEqualTo("Premium Movie");
+        assertThat(json.at("/data/movie/accessLevel").asText()).isEqualTo("PREMIUM");
     }
 
     @Test

@@ -12,7 +12,6 @@ import com.ott.streaming.dto.discovery.CatalogPagePayload;
 import com.ott.streaming.dto.discovery.CatalogQueryInput;
 import com.ott.streaming.dto.discovery.CatalogSortOption;
 import com.ott.streaming.dto.discovery.PaginationInfoPayload;
-import com.ott.streaming.entity.ContentAccessLevel;
 import com.ott.streaming.entity.ContentType;
 import com.ott.streaming.entity.Episode;
 import com.ott.streaming.entity.Genre;
@@ -20,7 +19,6 @@ import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Person;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
-import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.ReviewRepository;
@@ -36,10 +34,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -50,7 +44,6 @@ public class ContentQueryService {
     private final SeasonRepository seasonRepository;
     private final EpisodeRepository episodeRepository;
     private final ReviewRepository reviewRepository;
-    private final UserSubscriptionService userSubscriptionService;
     private final ContentReadCacheService contentReadCacheService;
 
     public ContentQueryService(MovieRepository movieRepository,
@@ -58,14 +51,12 @@ public class ContentQueryService {
                                SeasonRepository seasonRepository,
                                EpisodeRepository episodeRepository,
                                ReviewRepository reviewRepository,
-                               UserSubscriptionService userSubscriptionService,
                                ContentReadCacheService contentReadCacheService) {
         this.movieRepository = movieRepository;
         this.seriesRepository = seriesRepository;
         this.seasonRepository = seasonRepository;
         this.episodeRepository = episodeRepository;
         this.reviewRepository = reviewRepository;
-        this.userSubscriptionService = userSubscriptionService;
         this.contentReadCacheService = contentReadCacheService;
     }
 
@@ -74,17 +65,7 @@ public class ContentQueryService {
     }
 
     public MoviePayload getMovieById(Long id) {
-        return getMovieById(currentAuthenticatedEmail(), id);
-    }
-
-    public MoviePayload getMovieById(String email, Long id) {
-        MoviePayload movie = contentReadCacheService.getMovieById(id);
-        if (movie == null) {
-            return null;
-        }
-
-        enforceContentAccess(email, movie.accessLevel());
-        return movie;
+        return contentReadCacheService.getMovieById(id);
     }
 
     public List<SeriesPayload> getSeriesList() {
@@ -92,42 +73,18 @@ public class ContentQueryService {
     }
 
     public SeriesPayload getSeriesById(Long id) {
-        return getSeriesById(currentAuthenticatedEmail(), id);
-    }
-
-    public SeriesPayload getSeriesById(String email, Long id) {
-        SeriesPayload series = contentReadCacheService.getSeriesById(id);
-        if (series == null) {
-            return null;
-        }
-
-        enforceContentAccess(email, series.accessLevel());
-        return series;
+        return contentReadCacheService.getSeriesById(id);
     }
 
     public SeasonPayload getSeasonById(Long id) {
-        return getSeasonById(currentAuthenticatedEmail(), id);
-    }
-
-    public SeasonPayload getSeasonById(String email, Long id) {
         return seasonRepository.findById(id)
-                .map(season -> {
-                    enforceContentAccess(email, season.getSeries().getAccessLevel());
-                    return toSeasonPayload(season);
-                })
+                .map(this::toSeasonPayload)
                 .orElse(null);
     }
 
     public EpisodePayload getEpisodeById(Long id) {
-        return getEpisodeById(currentAuthenticatedEmail(), id);
-    }
-
-    public EpisodePayload getEpisodeById(String email, Long id) {
         return episodeRepository.findById(id)
-                .map(episode -> {
-                    enforceContentAccess(email, episode.getSeason().getSeries().getAccessLevel());
-                    return toEpisodePayload(episode);
-                })
+                .map(this::toEpisodePayload)
                 .orElse(null);
     }
 
@@ -225,16 +182,6 @@ public class ContentQueryService {
         episodeRepository.findBySeasonIdInOrderByEpisodeNumberAsc(seasonIds)
                 .forEach(episode -> episodesBySeasonId.get(episode.getSeason().getId()).add(toEpisodePayload(episode)));
         return episodesBySeasonId;
-    }
-
-    private void enforceContentAccess(String email, ContentAccessLevel accessLevel) {
-        if (accessLevel != ContentAccessLevel.PREMIUM) {
-            return;
-        }
-
-        if (!userSubscriptionService.hasPremiumAccess(email)) {
-            throw ApiException.forbidden("Premium subscription required to access this content");
-        }
     }
 
     private List<CatalogItemPayload> buildCatalogItems(String search, CatalogFilterInput filter) {
@@ -397,23 +344,6 @@ public class ContentQueryService {
         Map<Long, List<T>> values = new LinkedHashMap<>();
         ids.forEach(id -> values.put(id, new java.util.ArrayList<>()));
         return values;
-    }
-
-    private String currentAuthenticatedEmail() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || authentication instanceof AnonymousAuthenticationToken) {
-            return null;
-        }
-
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails userDetails) {
-            return userDetails.getUsername();
-        }
-        if (principal instanceof String username) {
-            return username;
-        }
-        return authentication.getName();
     }
 
     private MoviePayload toMoviePayload(Movie movie) {

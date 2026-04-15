@@ -1,7 +1,6 @@
 package com.ott.streaming.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,7 +19,6 @@ import com.ott.streaming.entity.Genre;
 import com.ott.streaming.entity.Movie;
 import com.ott.streaming.entity.Season;
 import com.ott.streaming.entity.Series;
-import com.ott.streaming.exception.ApiException;
 import com.ott.streaming.repository.EpisodeRepository;
 import com.ott.streaming.repository.MovieRepository;
 import com.ott.streaming.repository.ReviewRepository;
@@ -58,9 +56,6 @@ class ContentQueryServiceTest {
     private ReviewRepository reviewRepository;
 
     @Mock
-    private UserSubscriptionService userSubscriptionService;
-
-    @Mock
     private ContentReadCacheService contentReadCacheService;
 
     private ContentQueryService contentQueryService;
@@ -73,7 +68,6 @@ class ContentQueryServiceTest {
                 seasonRepository,
                 episodeRepository,
                 reviewRepository,
-                userSubscriptionService,
                 contentReadCacheService
         );
     }
@@ -116,7 +110,7 @@ class ContentQueryServiceTest {
     }
 
     @Test
-    void getMovieByIdBlocksPremiumContentWithoutSubscription() {
+    void getMovieByIdReturnsPremiumMetadataWithoutSubscription() {
         Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
         when(contentReadCacheService.getMovieById(2L)).thenReturn(new MoviePayload(
                 premiumMovie.getId(),
@@ -130,60 +124,59 @@ class ContentQueryServiceTest {
                 premiumMovie.getCreatedAt(),
                 premiumMovie.getUpdatedAt()
         ));
-        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
 
-        assertThatThrownBy(() -> contentQueryService.getMovieById(null, 2L))
-                .isInstanceOf(ApiException.class)
-                .hasMessage("Premium subscription required to access this content");
-    }
-
-    @Test
-    void getMovieByIdAllowsPremiumContentWithSubscription() {
-        Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
-        when(contentReadCacheService.getMovieById(2L)).thenReturn(new MoviePayload(
-                premiumMovie.getId(),
-                premiumMovie.getTitle(),
-                premiumMovie.getDescription(),
-                premiumMovie.getReleaseDate().toString(),
-                premiumMovie.getDurationMinutes(),
-                premiumMovie.getMaturityRating(),
-                premiumMovie.getLanguage(),
-                premiumMovie.getAccessLevel(),
-                premiumMovie.getCreatedAt(),
-                premiumMovie.getUpdatedAt()
-        ));
-        when(userSubscriptionService.hasPremiumAccess("member@example.com")).thenReturn(true);
-
-        MoviePayload payload = contentQueryService.getMovieById("member@example.com", 2L);
+        MoviePayload payload = contentQueryService.getMovieById(2L);
 
         assertThat(payload).isNotNull();
         assertThat(payload.accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
     }
 
     @Test
-    void getSeasonByIdBlocksPremiumParentSeriesWithoutSubscription() {
-        Series premiumSeries = series(9L, "Premium Series", ContentAccessLevel.PREMIUM);
-        Season season = season(3L, premiumSeries);
-        when(seasonRepository.findById(3L)).thenReturn(Optional.of(season));
-        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
+    void getMovieByIdReturnsPremiumMetadataForSubscriberViewersToo() {
+        Movie premiumMovie = movie(2L, "Premium Movie", ContentAccessLevel.PREMIUM);
+        when(contentReadCacheService.getMovieById(2L)).thenReturn(new MoviePayload(
+                premiumMovie.getId(),
+                premiumMovie.getTitle(),
+                premiumMovie.getDescription(),
+                premiumMovie.getReleaseDate().toString(),
+                premiumMovie.getDurationMinutes(),
+                premiumMovie.getMaturityRating(),
+                premiumMovie.getLanguage(),
+                premiumMovie.getAccessLevel(),
+                premiumMovie.getCreatedAt(),
+                premiumMovie.getUpdatedAt()
+        ));
 
-        assertThatThrownBy(() -> contentQueryService.getSeasonById(null, 3L))
-                .isInstanceOf(ApiException.class)
-                .hasMessage("Premium subscription required to access this content");
+        MoviePayload payload = contentQueryService.getMovieById(2L);
+
+        assertThat(payload).isNotNull();
+        assertThat(payload.accessLevel()).isEqualTo(ContentAccessLevel.PREMIUM);
     }
 
     @Test
-    void getEpisodeByIdBlocksPremiumParentSeriesWithoutSubscription() {
+    void getSeasonByIdReturnsPremiumParentSeriesMetadataWithoutSubscription() {
+        Series premiumSeries = series(9L, "Premium Series", ContentAccessLevel.PREMIUM);
+        Season season = season(3L, premiumSeries);
+        when(seasonRepository.findById(3L)).thenReturn(Optional.of(season));
+
+        var payload = contentQueryService.getSeasonById(3L);
+
+        assertThat(payload).isNotNull();
+        assertThat(payload.seriesId()).isEqualTo(premiumSeries.getId());
+    }
+
+    @Test
+    void getEpisodeByIdReturnsPremiumParentSeriesMetadataWithoutSubscription() {
         Series premiumSeries = series(9L, "Premium Series", ContentAccessLevel.PREMIUM);
         Season season = season(3L, premiumSeries);
         Episode episode = episode(4L, season);
 
         when(episodeRepository.findById(4L)).thenReturn(Optional.of(episode));
-        when(userSubscriptionService.hasPremiumAccess(null)).thenReturn(false);
 
-        assertThatThrownBy(() -> contentQueryService.getEpisodeById(null, 4L))
-                .isInstanceOf(ApiException.class)
-                .hasMessage("Premium subscription required to access this content");
+        var payload = contentQueryService.getEpisodeById(4L);
+
+        assertThat(payload).isNotNull();
+        assertThat(payload.seasonId()).isEqualTo(season.getId());
     }
 
     @Test

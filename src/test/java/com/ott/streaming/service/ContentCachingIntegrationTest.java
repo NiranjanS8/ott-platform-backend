@@ -58,9 +58,6 @@ class ContentCachingIntegrationTest {
     private ReviewRepository reviewRepository;
 
     @MockitoBean
-    private UserSubscriptionService userSubscriptionService;
-
-    @MockitoBean
     private SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Test
@@ -87,14 +84,13 @@ class ContentCachingIntegrationTest {
                 Optional.of(refreshedMovie)
         );
         when(movieRepository.save(any(Movie.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(userSubscriptionService.hasPremiumAccess("member@example.com")).thenReturn(true);
 
-        var firstRead = contentQueryService.getMovieById(null, 1L);
+        var firstRead = contentQueryService.getMovieById(1L);
         var updated = subscriptionAdminService.updateMovieAccessLevel(
                 1L,
                 new UpdateContentAccessInput(ContentAccessLevel.PREMIUM)
         );
-        var secondRead = contentQueryService.getMovieById("member@example.com", 1L);
+        var secondRead = contentQueryService.getMovieById(1L);
 
         assertThat(firstRead).isNotNull();
         assertThat(firstRead.accessLevel()).isEqualTo(ContentAccessLevel.FREE);
